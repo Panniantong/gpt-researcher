@@ -46,7 +46,7 @@ async def run_competitive_intelligence_research():
         )
         
         # 执行研究
-        result = await agent.conduct_r1esearch()
+        result = await agent.conduct_research()
         
         # 输出结果
         print("\n📊 研究完成！\n")
