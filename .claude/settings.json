@@ -1,0 +1,11 @@
+// ~/.claude/settings.json   ← 全局生效
+{
+    "permissions": {
+      "allow": [
+        "Bash"          // 允许任何 Bash 指令
+        // 也可以写成更细的匹配：
+        // "Bash(git diff:*)",
+        // "Bash(npm run test:*)"
+      ]
+    }
+  }
