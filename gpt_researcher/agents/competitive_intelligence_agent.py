@@ -12,7 +12,7 @@ from gpt_researcher.agent import GPTResearcher
 from gpt_researcher.config import Config
 from gpt_researcher.utils.logger import get_formatted_logger
 from gpt_researcher.agents.utils import CompetitiveQueryBuilder, CompetitiveReportGenerator
-from gpt_researcher.actions import get_search_results
+
 
 logger = get_formatted_logger()
 
@@ -148,8 +148,8 @@ class CompetitiveIntelligenceAgent(GPTResearcher):
         logger.info(f"Starting competitive intelligence research for {self.product_name}")
         
         try:
-            # # 1. 基础信息收集
-            # await self._research_basic_info()
+            # 1. 基础信息收集
+            await self._research_basic_info()
             
             # 2. 创始人/团队情报
             await self._research_founder_intelligence()
@@ -197,7 +197,7 @@ class CompetitiveIntelligenceAgent(GPTResearcher):
         self.product_info.search_traces = query_template.queries
         
         # 提取和验证信息
-        await self._extract_basic_info(search_results, query_template.sources)
+        await self._extract_basic_info(search_results)
     
     async def _research_founder_intelligence(self):
         """研究创始人/团队情报"""
@@ -318,7 +318,7 @@ class CompetitiveIntelligenceAgent(GPTResearcher):
             "product_info": self._dataclass_to_dict(self.product_info),
             "founder_info": self._dataclass_to_dict(self.founder_info),
             "eight_dimensions": self._dataclass_to_dict(self.eight_dimensions),
-            "growth_intelligence": self._dataclass_to_dict(self.growth_intelligenceligence),
+            "growth_intelligence": self._dataclass_to_dict(self.growth_intelligence),
             "feasibility": self._dataclass_to_dict(self.feasibility),
             "executive_summary": self._dataclass_to_dict(self.executive_summary)
         }
@@ -366,7 +366,7 @@ class CompetitiveIntelligenceAgent(GPTResearcher):
         return asdict(obj)
     
     # 以下是各种提取方法的占位符，将在后续实现
-    async def _extract_basic_info(self, search_results, preferred_sources: List[str]):
+    async def _extract_basic_info(self, search_results):
         """从搜索结果中提取基础信息"""
         try:
             # 构建上下文
@@ -416,7 +416,6 @@ Return ONLY the JSON object, no additional text."""
             
             # 解析响应
             import json
-            import re
     
             try:
                 extracted_info = json.loads(response)
@@ -464,49 +463,27 @@ Return ONLY the JSON object, no additional text."""
                     content = result.get('raw_content', result.get('content', result.get('body', '')))
                     context_parts.append(f"Source: {url}\n{content}")
             context = "\n\n".join(context_parts)
-            
+
             prompt = f"""Based on the following search results about {self.product_name}, extract founder and team information:
 
 Context:
 {context}
 
-Please extract and structure the following information:
-
-1. Founder Portrait:
-   - Name(s) of founder(s)
-   - Background and previous experience
-   - Education
-   - Notable achievements
-   - Any relevant expertise
-
-2. Unfair Advantages:
-   - Industry connections
-   - Technical expertise
-   - Previous successful exits
-   - Domain expertise
-   - Team composition strengths
-
-3. AI + Industry Expert Validation:
-   - Has the team demonstrated AI expertise?
-   - Do they have industry-specific knowledge?
-   - Any notable advisors or investors?
+Please extract and return the following information in JSON format:
+{{
+    "founder_portrait": "Detailed founder information including names, background, experience, education, achievements, expertise or 'Info insufficient'",
+    "unfair_advantages": "Industry connections, technical expertise, previous exits, domain expertise, team strengths or 'Info insufficient'",
+    "ai_validation": "AI expertise, industry knowledge, notable advisors/investors or 'Info insufficient'"
+}}
 
 IMPORTANT:
 - Only use information explicitly stated in the search results
-- If information is not found, state 'Info insufficient'
-- Do not make assumptions
-- Include source URLs for key facts
+- If information is not found, use 'Info insufficient'
+- Do not make assumptions or inferences
+- Include source URLs for key facts within the text
 
-Structure your response as follows:
----PORTRAIT---
-[Founder portrait information]
+Return ONLY the JSON object, no additional text."""
 
----ADVANTAGES---
-[Unfair advantages]
-
----VALIDATION---
-[AI and industry expertise]"""
-            
             # 使用LLM提取信息
             from gpt_researcher.utils.llm import create_chat_completion
             response = await create_chat_completion(
@@ -520,26 +497,26 @@ Structure your response as follows:
                 llm_provider=self.cfg.smart_llm_provider,
                 llm_kwargs=self.cfg.llm_kwargs
             )
-            
-            # 解析响应并更新信息
-            sections = response.split('---')
-            
-            for section in sections:
-                if 'PORTRAIT' in section:
-                    portrait_content = section.replace('PORTRAIT', '').strip()
-                    if portrait_content and 'Info insufficient' not in portrait_content[:50]:
-                        self.founder_info.profile['portrait'] = portrait_content
-                        
-                elif 'ADVANTAGES' in section:
-                    advantages_content = section.replace('ADVANTAGES', '').strip()
-                    if advantages_content and 'Info insufficient' not in advantages_content[:50]:
-                        self.founder_info.unfair_advantages['summary'] = advantages_content
-                        
-                elif 'VALIDATION' in section:
-                    validation_content = section.replace('VALIDATION', '').strip()
-                    if validation_content and 'Info insufficient' not in validation_content[:50]:
-                        self.founder_info.validation = validation_content
-            
+
+            # 解析响应
+            import json
+
+            try:
+                extracted_info = json.loads(response)
+
+                # 更新创始人信息
+                if extracted_info.get('founder_portrait') and extracted_info.get('founder_portrait') != 'Info insufficient':
+                    self.founder_info.profile['portrait'] = extracted_info['founder_portrait']
+
+                if extracted_info.get('unfair_advantages') and extracted_info.get('unfair_advantages') != 'Info insufficient':
+                    self.founder_info.unfair_advantages['summary'] = extracted_info['unfair_advantages']
+
+                if extracted_info.get('ai_validation') and extracted_info.get('ai_validation') != 'Info insufficient':
+                    self.founder_info.validation = extracted_info['ai_validation']
+
+            except json.JSONDecodeError:
+                logger.warning("Failed to parse JSON from LLM response for founder info")
+
             # 记录来源
             for result in search_results[:5]:
                 if isinstance(result, dict):
@@ -552,7 +529,7 @@ Structure your response as follows:
                                 'title': result.get('title', ''),
                                 'used_for': 'founder_info'
                             })
-                        
+
         except Exception as e:
             logger.error(f"Error extracting founder info: {str(e)}")
     
@@ -567,42 +544,37 @@ Structure your response as follows:
                     content = result.get('raw_content', result.get('content', result.get('body', '')))
                     context_parts.append(f"Source: {url}\n{content}")
             context = "\n\n".join(context_parts)
-            
+
             prompt = f"""Based on the following search results about {self.product_name}, analyze the product across 8 dimensions:
 
 Context:
 {context}
 
-Please analyze and provide structured answers for each dimension:
-
-1. Q1 - Pitch (One sentence description of what the product does)
-
-2. Q2 - Fixed Broken Spot (What specific problem does it solve? Include sources)
-
-3. Q3 - User Urgency (How urgent is the problem for users? Include evidence/sources)
-
-4. Q4 - Who-When-Action (Who uses it, when, and what action they take)
-
-5. Q5 - Pain & Pain-level (What pain does it address and how severe is it?)
-
-6. Q6 - Arena & Scoring Rule:
-   - Market/Arena description (one sentence)
-   - Key success metrics (1-3 metrics with evidence)
-   - Competitive scoring (compare with 2 competitors if known)
-   - Leading logic (why this product wins)
-
-7. Q7 - First/Only/Number (What makes it unique? Include sources)
-
-8. Q8 - Implementation Architecture (Technical approach, only based on available info)
+Please analyze and return the following information in JSON format:
+{{
+    "q1_pitch": "One sentence description of what the product does or 'Info insufficient'",
+    "q2_broken_spot": "What specific problem does it solve? Include sources or 'Info insufficient'",
+    "q3_urgency": "How urgent is the problem for users? Include evidence/sources or 'Info insufficient'",
+    "q4_who_when_action": "Who uses it, when, and what action they take or 'Info insufficient'",
+    "q5_pain_level": "What pain does it address and how severe is it? or 'Info insufficient'",
+    "q6_arena": {{
+        "arena_description": "Market/Arena description (one sentence) or 'Info insufficient'",
+        "success_metrics": "Key success metrics (1-3 metrics with evidence) or 'Info insufficient'",
+        "competitive_scoring": "Compare with 2 competitors if known or 'Info insufficient'",
+        "leading_logic": "Why this product wins or 'Info insufficient'"
+    }},
+    "q7_unique": "What makes it unique? Include sources or 'Info insufficient'",
+    "q8_implementation": "Technical approach, only based on available info or 'Info insufficient'"
+}}
 
 IMPORTANT:
 - For Q2, Q3, Q6, Q7: You MUST include specific sources/evidence
-- If information is not available, state 'Info insufficient' 
+- If information is not available, use 'Info insufficient'
 - Do not speculate or make assumptions
 - Be concise but specific
 
-Format your response with clear sections for each question (Q1:, Q2:, etc.)"""
-            
+Return ONLY the JSON object, no additional text."""
+
             # 使用LLM提取信息
             from gpt_researcher.utils.llm import create_chat_completion
             response = await create_chat_completion(
@@ -616,59 +588,49 @@ Format your response with clear sections for each question (Q1:, Q2:, etc.)"""
                 llm_provider=self.cfg.smart_llm_provider,
                 llm_kwargs=self.cfg.llm_kwargs
             )
-            
-            # 解析响应并更新信息
-            import re
-            
-            # 提取每个问题的答案
-            q1_match = re.search(r'Q1[:\-\s]+(.+?)(?=Q2:|$)', response, re.DOTALL)
-            if q1_match and 'Info insufficient' not in q1_match.group(1)[:30]:
-                self.eight_dimensions.q1_pitch = q1_match.group(1).strip()
-            
-            q2_match = re.search(r'Q2[:\-\s]+(.+?)(?=Q3:|$)', response, re.DOTALL)
-            if q2_match and 'Info insufficient' not in q2_match.group(1)[:30]:
-                self.eight_dimensions.q2_broken_spot = q2_match.group(1).strip()
-            
-            q3_match = re.search(r'Q3[:\-\s]+(.+?)(?=Q4:|$)', response, re.DOTALL)
-            if q3_match and 'Info insufficient' not in q3_match.group(1)[:30]:
-                self.eight_dimensions.q3_urgency = q3_match.group(1).strip()
-            
-            q4_match = re.search(r'Q4[:\-\s]+(.+?)(?=Q5:|$)', response, re.DOTALL)
-            if q4_match and 'Info insufficient' not in q4_match.group(1)[:30]:
-                self.eight_dimensions.q4_who_when_action = q4_match.group(1).strip()
-            
-            q5_match = re.search(r'Q5[:\-\s]+(.+?)(?=Q6:|$)', response, re.DOTALL)
-            if q5_match and 'Info insufficient' not in q5_match.group(1)[:30]:
-                self.eight_dimensions.q5_pain_level = q5_match.group(1).strip()
-            
-            q6_match = re.search(r'Q6[:\-\s]+(.+?)(?=Q7:|$)', response, re.DOTALL)
-            if q6_match:
-                q6_content = q6_match.group(1).strip()
-                if 'Info insufficient' not in q6_content[:30]:
-                    # 解析Q6的子部分
-                    arena_match = re.search(r'Market/Arena[:\-\s]+(.+?)(?=Key success|$)', q6_content, re.IGNORECASE)
-                    if arena_match:
-                        self.eight_dimensions.q6_arena['arena_description'] = arena_match.group(1).strip()
-                    
-                    metrics_match = re.search(r'Key success metrics[:\-\s]+(.+?)(?=Competitive|Leading|$)', q6_content, re.IGNORECASE | re.DOTALL)
-                    if metrics_match:
-                        self.eight_dimensions.q6_arena['success_metrics'] = metrics_match.group(1).strip()
-                    
-                    scoring_match = re.search(r'Competitive scoring[:\-\s]+(.+?)(?=Leading|$)', q6_content, re.IGNORECASE | re.DOTALL)
-                    if scoring_match:
-                        self.eight_dimensions.q6_arena['competitive_scoring'] = scoring_match.group(1).strip()
-                    
-                    logic_match = re.search(r'Leading logic[:\-\s]+(.+?)$', q6_content, re.IGNORECASE | re.DOTALL)
-                    if logic_match:
-                        self.eight_dimensions.q6_arena['leading_logic'] = logic_match.group(1).strip()
-            
-            q7_match = re.search(r'Q7[:\-\s]+(.+?)(?=Q8:|$)', response, re.DOTALL)
-            if q7_match and 'Info insufficient' not in q7_match.group(1)[:30]:
-                self.eight_dimensions.q7_unique = q7_match.group(1).strip()
-            
-            q8_match = re.search(r'Q8[:\-\s]+(.+?)$', response, re.DOTALL)
-            if q8_match and 'Info insufficient' not in q8_match.group(1)[:30]:
-                self.eight_dimensions.q8_implementation = q8_match.group(1).strip()
+
+            # 解析响应
+            import json
+
+            try:
+                extracted_info = json.loads(response)
+
+                # 更新八维分析信息
+                if extracted_info.get('q1_pitch') and extracted_info.get('q1_pitch') != 'Info insufficient':
+                    self.eight_dimensions.q1_pitch = extracted_info['q1_pitch']
+
+                if extracted_info.get('q2_broken_spot') and extracted_info.get('q2_broken_spot') != 'Info insufficient':
+                    self.eight_dimensions.q2_broken_spot = extracted_info['q2_broken_spot']
+
+                if extracted_info.get('q3_urgency') and extracted_info.get('q3_urgency') != 'Info insufficient':
+                    self.eight_dimensions.q3_urgency = extracted_info['q3_urgency']
+
+                if extracted_info.get('q4_who_when_action') and extracted_info.get('q4_who_when_action') != 'Info insufficient':
+                    self.eight_dimensions.q4_who_when_action = extracted_info['q4_who_when_action']
+
+                if extracted_info.get('q5_pain_level') and extracted_info.get('q5_pain_level') != 'Info insufficient':
+                    self.eight_dimensions.q5_pain_level = extracted_info['q5_pain_level']
+
+                # 处理Q6的嵌套结构
+                if extracted_info.get('q6_arena'):
+                    q6_data = extracted_info['q6_arena']
+                    if q6_data.get('arena_description') and q6_data.get('arena_description') != 'Info insufficient':
+                        self.eight_dimensions.q6_arena['arena_description'] = q6_data['arena_description']
+                    if q6_data.get('success_metrics') and q6_data.get('success_metrics') != 'Info insufficient':
+                        self.eight_dimensions.q6_arena['success_metrics'] = q6_data['success_metrics']
+                    if q6_data.get('competitive_scoring') and q6_data.get('competitive_scoring') != 'Info insufficient':
+                        self.eight_dimensions.q6_arena['competitive_scoring'] = q6_data['competitive_scoring']
+                    if q6_data.get('leading_logic') and q6_data.get('leading_logic') != 'Info insufficient':
+                        self.eight_dimensions.q6_arena['leading_logic'] = q6_data['leading_logic']
+
+                if extracted_info.get('q7_unique') and extracted_info.get('q7_unique') != 'Info insufficient':
+                    self.eight_dimensions.q7_unique = extracted_info['q7_unique']
+
+                if extracted_info.get('q8_implementation') and extracted_info.get('q8_implementation') != 'Info insufficient':
+                    self.eight_dimensions.q8_implementation = extracted_info['q8_implementation']
+
+            except json.JSONDecodeError:
+                logger.warning("Failed to parse JSON from LLM response for eight dimensions")
             
             # 记录来源
             for result in search_results[:8]:
@@ -695,42 +657,26 @@ Format your response with clear sections for each question (Q1:, Q2:, etc.)"""
                     content = result.get('raw_content', result.get('content', result.get('body', '')))
                     context_parts.append(f"Source: {url}\n{content}")
             context = "\n\n".join(context_parts)
-            
+
             prompt = f"""Based on the following search results about {self.product_name}, extract growth and marketing intelligence:
 
 Context:
 {context}
 
-Please extract the following information:
-
-1. Growth Timeline & Milestones:
-   - Launch date
-   - Key milestones (funding, user milestones, product launches)
-   - Growth trajectory
-   - Include specific dates and sources
-
-2. Growth Channels & Tactics:
-   - Primary customer acquisition channels
-   - Marketing strategies observed
-   - Content marketing approach
-   - Community building efforts
-   - SEO/SEM strategy
-   - Social media presence
-   - Include evidence and sources
+Please extract and return the following information in JSON format:
+{{
+    "timeline_milestones": "Launch date, key milestones (funding, user milestones, product launches), growth trajectory with specific dates and sources or 'Info insufficient'",
+    "channels_tactics": "Primary customer acquisition channels, marketing strategies, content marketing, community building, SEO/SEM, social media presence with evidence and sources or 'Info insufficient'"
+}}
 
 IMPORTANT:
 - Only use information explicitly stated in the search results
 - Include specific sources for all claims
-- If information is not available, state 'Info insufficient'
+- If information is not available, use 'Info insufficient'
 - Focus on verifiable facts, not speculation
 
-Format your response as:
-===TIMELINE===
-[Timeline and milestones with sources]
+Return ONLY the JSON object, no additional text."""
 
-===CHANNELS===
-[Growth channels and tactics with evidence]"""
-            
             # 使用LLM提取信息
             from gpt_researcher.utils.llm import create_chat_completion
             response = await create_chat_completion(
@@ -744,20 +690,22 @@ Format your response as:
                 llm_provider=self.cfg.smart_llm_provider,
                 llm_kwargs=self.cfg.llm_kwargs
             )
-            
+
             # 解析响应
-            sections = response.split('===')
-            
-            for section in sections:
-                if 'TIMELINE' in section:
-                    timeline_content = section.replace('TIMELINE', '').strip()
-                    if timeline_content and 'Info insufficient' not in timeline_content[:50]:
-                        self.growth_intelligence['timeline_milestones'] = timeline_content
-                        
-                elif 'CHANNELS' in section:
-                    channels_content = section.replace('CHANNELS', '').strip()
-                    if channels_content and 'Info insufficient' not in channels_content[:50]:
-                        self.growth_intelligence['channels_tactics'] = channels_content
+            import json
+
+            try:
+                extracted_info = json.loads(response)
+
+                # 更新增长情报信息
+                if extracted_info.get('timeline_milestones') and extracted_info.get('timeline_milestones') != 'Info insufficient':
+                    self.growth_intelligence.timeline_milestones = extracted_info['timeline_milestones']
+
+                if extracted_info.get('channels_tactics') and extracted_info.get('channels_tactics') != 'Info insufficient':
+                    self.growth_intelligence.channels_tactics = extracted_info['channels_tactics']
+
+            except json.JSONDecodeError:
+                logger.warning("Failed to parse JSON from LLM response for growth intelligence")
             
             # 记录来源
             for result in search_results[:6]:
@@ -806,34 +754,22 @@ Unique Aspects (Q7):
 Context:
 {context}
 
-1. Difficulty Level:
-   Rate the overall difficulty: Easy / Medium / Hard / Very Hard
-   Provide brief justification
+Please analyze and return the following information in JSON format:
+{{
+    "difficulty": "Easy/Medium/Hard/Very Hard with brief justification",
+    "ai_stack": "Which parts can be built with modern AI tools (LLMs, embeddings, etc.), AI services/APIs that could replace complex components, estimated development time with AI assistance",
+    "challenges": "List 3-4 main challenges: core technical hurdles, infrastructure requirements, data/content challenges, integration complexity",
+    "ai_advantages": "What becomes easier with AI tools, which features can be rapidly prototyped, time/cost savings estimates",
+    "barriers": "Regulatory requirements, network effects needed, data moats, partnership requirements"
+}}
 
-2. Modern AI Stack Analysis:
-   - Which parts can be built with modern AI tools (LLMs, embeddings, etc.)?
-   - What AI services/APIs could replace complex components?
-   - Estimated development time with AI assistance
+IMPORTANT:
+- Focus on practical implementation considerations for an indie developer
+- Be specific and actionable
+- If information is not available, state clearly
 
-3. Technical Challenges (list 3-4 main challenges):
-   - Core technical hurdles
-   - Infrastructure requirements
-   - Data/content challenges
-   - Integration complexity
+Return ONLY the JSON object, no additional text."""
 
-4. AI-Assisted Advantages:
-   - What becomes easier with AI tools?
-   - Which features can be rapidly prototyped?
-   - Time/cost savings estimates
-
-5. Industry Barriers:
-   - Regulatory requirements
-   - Network effects needed
-   - Data moats
-   - Partnership requirements
-
-Provide a structured analysis focusing on practical implementation considerations for an indie developer."""
-            
             # 使用LLM分析
             from gpt_researcher.utils.llm import create_chat_completion
             response = await create_chat_completion(
@@ -847,31 +783,31 @@ Provide a structured analysis focusing on practical implementation consideration
                 llm_provider=self.cfg.smart_llm_provider,
                 llm_kwargs=self.cfg.llm_kwargs
             )
-            
+
             # 解析响应
-            import re
-            
-            # 提取难度等级
-            difficulty_match = re.search(r'Difficulty Level:.*?(Easy|Medium|Hard|Very Hard)', response, re.IGNORECASE | re.DOTALL)
-            if difficulty_match:
-                self.feasibility.difficulty = difficulty_match.group(1)
-            
-            # 提取各部分
-            ai_stack_match = re.search(r'Modern AI Stack Analysis:(.+?)(?=\d+\.|Technical Challenges:|$)', response, re.DOTALL)
-            if ai_stack_match:
-                self.feasibility.ai_stack = ai_stack_match.group(1).strip()
-            
-            challenges_match = re.search(r'Technical Challenges.*?:(.+?)(?=\d+\.|AI-Assisted|$)', response, re.DOTALL)
-            if challenges_match:
-                self.feasibility.challenges = challenges_match.group(1).strip()
-            
-            ai_advantages_match = re.search(r'AI-Assisted Advantages:(.+?)(?=\d+\.|Industry Barriers:|$)', response, re.DOTALL)
-            if ai_advantages_match:
-                self.feasibility.ai_advantages = ai_advantages_match.group(1).strip()
-            
-            barriers_match = re.search(r'Industry Barriers:(.+?)$', response, re.DOTALL)
-            if barriers_match:
-                self.feasibility.barriers = barriers_match.group(1).strip()
+            import json
+
+            try:
+                extracted_info = json.loads(response)
+
+                # 更新可行性分析信息
+                if extracted_info.get('difficulty'):
+                    self.feasibility.difficulty = extracted_info['difficulty']
+
+                if extracted_info.get('ai_stack'):
+                    self.feasibility.ai_stack = extracted_info['ai_stack']
+
+                if extracted_info.get('challenges'):
+                    self.feasibility.challenges = extracted_info['challenges']
+
+                if extracted_info.get('ai_advantages'):
+                    self.feasibility.ai_advantages = extracted_info['ai_advantages']
+
+                if extracted_info.get('barriers'):
+                    self.feasibility.barriers = extracted_info['barriers']
+
+            except json.JSONDecodeError:
+                logger.warning("Failed to parse JSON from LLM response for feasibility analysis")
                 
         except Exception as e:
             logger.error(f"Error analyzing feasibility: {str(e)}")
@@ -912,39 +848,24 @@ Feasibility Analysis:
 Context:
 {context}
 
-Create a strategic executive summary with these sections:
+Please create and return a strategic executive summary in JSON format:
+{{
+    "core_insights": "2-3 bullet points: Most important findings about the product and market, key competitive advantages identified",
+    "growth_model": "2-3 bullet points: How they acquire and retain users, key growth inflection points, scalability insights",
+    "founder_advantages": "2-3 bullet points: What unique advantages the founders bring, why they specifically can succeed, team composition strengths",
+    "transferable_elements": "2-3 bullet points: What aspects can be replicated by others, which features are commoditized vs. differentiated, lessons for indie developers",
+    "trend_insights": "2-3 bullet points: Market trends this product is riding, future opportunities in this space, timing considerations",
+    "ai_strategy": "2-3 bullet points: How to approach this market as an indie developer, where AI tools provide leverage, niche opportunities to explore"
+}}
 
-1. 🎯 Core Insights (2-3 bullet points)
-   - Most important findings about the product and market
-   - Key competitive advantages identified
+IMPORTANT:
+- Be concise, strategic, and actionable
+- Focus on insights that would help someone understand both the product's success and opportunities for innovation
+- Use bullet points format within each field
+- If information is insufficient for any section, state clearly
 
-2. 🚀 Growth Model (2-3 bullet points)
-   - How they acquire and retain users
-   - Key growth inflection points
-   - Scalability insights
+Return ONLY the JSON object, no additional text."""
 
-3. 👑 Founder Advantages (2-3 bullet points)
-   - What unique advantages the founders bring
-   - Why they specifically can succeed
-   - Team composition strengths
-
-4. 🧩 Transferable Elements (2-3 bullet points)
-   - What aspects can be replicated by others
-   - Which features are commoditized vs. differentiated
-   - Lessons for indie developers
-
-5. 💡 Trend Insights (2-3 bullet points)
-   - Market trends this product is riding
-   - Future opportunities in this space
-   - Timing considerations
-
-6. ⭐ AI-Era Solo Developer Strategy (2-3 bullet points)
-   - How to approach this market as an indie developer
-   - Where AI tools provide leverage
-   - Niche opportunities to explore
-
-Be concise, strategic, and actionable. Focus on insights that would help someone understand both the product's success and opportunities for innovation."""
-            
             # 使用LLM生成摘要
             from gpt_researcher.utils.llm import create_chat_completion
             response = await create_chat_completion(
@@ -958,24 +879,34 @@ Be concise, strategic, and actionable. Focus on insights that would help someone
                 llm_provider=self.cfg.smart_llm_provider,
                 llm_kwargs=self.cfg.llm_kwargs
             )
-            
+
             # 解析响应
-            import re
-            
-            # 提取各个部分
-            sections = {
-                'core_insights': r'🎯\s*Core Insights(.+?)(?=🚀|👑|$)',
-                'growth_model': r'🚀\s*Growth Model(.+?)(?=👑|🧩|$)',
-                'founder_advantages': r'👑\s*Founder Advantages(.+?)(?=🧩|💡|$)',
-                'transferable_elements': r'🧩\s*Transferable Elements(.+?)(?=💡|⭐|$)',
-                'trend_insights': r'💡\s*Trend Insights(.+?)(?=⭐|$)',
-                'ai_strategy': r'⭐\s*AI-Era Solo Developer Strategy(.+?)$'
-            }
-            
-            for key, pattern in sections.items():
-                match = re.search(pattern, response, re.DOTALL)
-                if match:
-                    setattr(self.executive_summary, key, match.group(1).strip())
+            import json
+
+            try:
+                extracted_info = json.loads(response)
+
+                # 更新执行摘要信息
+                if extracted_info.get('core_insights'):
+                    self.executive_summary.core_insights = extracted_info['core_insights']
+
+                if extracted_info.get('growth_model'):
+                    self.executive_summary.growth_model = extracted_info['growth_model']
+
+                if extracted_info.get('founder_advantages'):
+                    self.executive_summary.founder_advantages = extracted_info['founder_advantages']
+
+                if extracted_info.get('transferable_elements'):
+                    self.executive_summary.transferable_elements = extracted_info['transferable_elements']
+
+                if extracted_info.get('trend_insights'):
+                    self.executive_summary.trend_insights = extracted_info['trend_insights']
+
+                if extracted_info.get('ai_strategy'):
+                    self.executive_summary.ai_strategy = extracted_info['ai_strategy']
+
+            except json.JSONDecodeError:
+                logger.warning("Failed to parse JSON from LLM response for executive summary")
                     
         except Exception as e:
             logger.error(f"Error synthesizing summary: {str(e)}")
