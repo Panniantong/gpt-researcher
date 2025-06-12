@@ -9,6 +9,33 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Maximum query length for Tavily API (400 characters)
+MAX_QUERY_LENGTH = 400
+
+def truncate_query(query: str, max_length: int = MAX_QUERY_LENGTH) -> str:
+    """
+    Truncate query to fit within API character limits.
+
+    Args:
+        query (str): The original query
+        max_length (int): Maximum allowed length
+
+    Returns:
+        str: Truncated query that fits within the limit
+    """
+    if len(query) <= max_length:
+        return query
+
+    # Try to truncate at word boundary to maintain readability
+    truncated = query[:max_length]
+    last_space = truncated.rfind(' ')
+
+    if last_space > max_length * 0.8:  # If we can find a space in the last 20%
+        return truncated[:last_space].strip()
+    else:
+        # If no good word boundary, just truncate at character limit
+        return truncated.strip()
+
 async def get_search_results(query: str, retriever: Any, query_domains: List[str] = None, researcher=None) -> List[Dict[str, Any]]:
     """
     Get web search results for a given query.
@@ -22,16 +49,21 @@ async def get_search_results(query: str, retriever: Any, query_domains: List[str
     Returns:
         A list of search results
     """
+    # Ensure query is within API limits before passing to retriever
+    truncated_query = truncate_query(query, MAX_QUERY_LENGTH)
+    if len(query) > MAX_QUERY_LENGTH:
+        logger.info(f"Query truncated from {len(query)} to {len(truncated_query)} characters")
+
     # Check if this is an MCP retriever and pass the researcher instance
     if "mcpretriever" in retriever.__name__.lower():
         search_retriever = retriever(
-            query, 
+            truncated_query,
             query_domains=query_domains,
             researcher=researcher  # Pass researcher instance for MCP retrievers
         )
     else:
-        search_retriever = retriever(query, query_domains=query_domains)
-    
+        search_retriever = retriever(truncated_query, query_domains=query_domains)
+
     return search_retriever.search()
 
 async def generate_sub_queries(
@@ -60,8 +92,30 @@ async def generate_sub_queries(
     Returns:
         A list of sub-queries
     """
+    # First, translate query to English if it's not already
+    translation_prompt = f"""If the following query is not in English, translate it to English. 
+If it's already in English, return it as is.
+Query: {query}
+
+Return ONLY the English query, nothing else."""
+    
+    try:
+        english_query = await create_chat_completion(
+            model=cfg.smart_llm_model,
+            messages=[{"role": "user", "content": translation_prompt}],
+            temperature=0.3,
+            max_tokens=500,
+            llm_provider=cfg.smart_llm_provider,
+            llm_kwargs=cfg.llm_kwargs,
+            cost_callback=cost_callback,
+        )
+        english_query = english_query.strip()
+    except Exception as e:
+        logger.warning(f"Failed to translate query: {e}. Using original query.")
+        english_query = query
+    
     gen_queries_prompt = prompt_family.generate_search_queries_prompt(
-        query,
+        english_query,
         parent_query,
         report_type,
         max_iterations=cfg.max_iterations or 3,
@@ -107,7 +161,23 @@ async def generate_sub_queries(
                 **kwargs
             )
 
-    return json_repair.loads(response)
+    # Parse the response and truncate any queries that are too long
+    sub_queries = json_repair.loads(response)
+
+    # Ensure all sub-queries are within length limits
+    if isinstance(sub_queries, list):
+        truncated_queries = []
+        for query in sub_queries:
+            if isinstance(query, str):
+                truncated_query = truncate_query(query, MAX_QUERY_LENGTH)
+                if len(query) > MAX_QUERY_LENGTH:
+                    logger.info(f"Sub-query truncated from {len(query)} to {len(truncated_query)} characters")
+                truncated_queries.append(truncated_query)
+            else:
+                truncated_queries.append(query)
+        return truncated_queries
+
+    return sub_queries
 
 async def plan_research_outline(
     query: str,

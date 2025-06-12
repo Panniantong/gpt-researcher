@@ -155,10 +155,13 @@ Use this context to inform and refine your search queries. The context provides 
 
         return f"""Write {max_iterations} google search queries to search online that form an objective opinion from the following task: "{task}"
 
+IMPORTANT: All queries MUST be in English. If the task is not in English, translate it and generate English queries.
 Assume the current date is {datetime.now(timezone.utc).strftime('%B %d, %Y')} if required.
 
 {context_prompt}
 You must respond with a list of strings in the following format: [{dynamic_example}].
+Each query should be specific, focused, and in proper English.
+Avoid generic terms, use specific product names, technologies, or concepts.
 The response should contain ONLY the list.
 """
 

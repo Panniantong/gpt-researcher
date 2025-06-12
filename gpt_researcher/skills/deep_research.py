@@ -14,9 +14,36 @@ logger = logging.getLogger(__name__)
 # Maximum words allowed in context (25k words for safety margin)
 MAX_CONTEXT_WORDS = 25000
 
+# Maximum query length for Tavily API (400 characters)
+MAX_QUERY_LENGTH = 400
+
 def count_words(text: str) -> int:
     """Count words in a text string"""
     return len(text.split())
+
+def truncate_query(query: str, max_length: int = MAX_QUERY_LENGTH) -> str:
+    """
+    Truncate query to fit within API character limits.
+
+    Args:
+        query (str): The original query
+        max_length (int): Maximum allowed length
+
+    Returns:
+        str: Truncated query that fits within the limit
+    """
+    if len(query) <= max_length:
+        return query
+
+    # Try to truncate at word boundary to maintain readability
+    truncated = query[:max_length]
+    last_space = truncated.rfind(' ')
+
+    if last_space > max_length * 0.8:  # If we can find a space in the last 20%
+        return truncated[:last_space].strip()
+    else:
+        # If no good word boundary, just truncate at character limit
+        return truncated.strip()
 
 def trim_context_to_word_limit(context_list: List[str], max_words: int = MAX_CONTEXT_WORDS) -> List[str]:
     """Trim context list to stay within word limit while preserving most recent/relevant items"""
@@ -63,9 +90,19 @@ class DeepResearchSkill:
     async def generate_search_queries(self, query: str, num_queries: int = 3) -> List[Dict[str, str]]:
         """Generate SERP queries for research"""
         messages = [
-            {"role": "system", "content": "You are an expert researcher generating search queries."},
+            {"role": "system", "content": "You are an expert researcher generating search queries. Each query must be under 400 characters to comply with API limits. ALL queries MUST be in English regardless of the input language."},
             {"role": "user",
-             "content": f"Given the following prompt, generate {num_queries} unique search queries to research the topic thoroughly. For each query, provide a research goal. Format as 'Query: <query>' followed by 'Goal: <goal>' for each pair: {query}"}
+             "content": f"""Given the following prompt, generate {num_queries} unique English search queries to research the topic thoroughly. 
+
+IMPORTANT RULES:
+1. ALL queries MUST be in English, even if the prompt is in another language
+2. Each query MUST be under 400 characters
+3. Use specific terms, product names, technologies, not generic terms
+4. Focus on finding factual, recent information
+
+Prompt: {query}
+
+For each query, provide a research goal. Format as 'Query: <query>' followed by 'Goal: <goal>' for each pair."""}
         ]
 
         response = await create_chat_completion(
@@ -85,7 +122,10 @@ class DeepResearchSkill:
             if line.startswith('Query:'):
                 if current_query:
                     queries.append(current_query)
-                current_query = {'query': line.replace('Query:', '').strip()}
+                query_text = line.replace('Query:', '').strip()
+                # Ensure query is within length limit
+                query_text = truncate_query(query_text, MAX_QUERY_LENGTH)
+                current_query = {'query': query_text}
             elif line.startswith('Goal:') and current_query:
                 current_query['researchGoal'] = line.replace('Goal:', '').strip()
 
@@ -303,6 +343,9 @@ Format each question on a new line starting with 'Question: '"""}
                 Follow-up questions: {' '.join(result['followUpQuestions'])}
                 """
 
+                # Ensure the recursive query is within length limits
+                next_query = truncate_query(next_query.strip(), MAX_QUERY_LENGTH)
+
                 # Recursive research
                 deeper_results = await self.deep_research(
                     query=next_query,
@@ -352,6 +395,9 @@ Format each question on a new line starting with 'Question: '"""}
         combined_query = f"""
         Initial Query: {self.researcher.query}\nFollow - up Questions and Answers:\n
         """ + "\n".join(qa_pairs)
+
+        # Ensure the combined query is within length limits
+        combined_query = truncate_query(combined_query.strip(), MAX_QUERY_LENGTH)
 
         results = await self.deep_research(
             query=combined_query,

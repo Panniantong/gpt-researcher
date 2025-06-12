@@ -70,11 +70,16 @@ class ContextCompressor:
         return contextual_retriever
 
     async def async_get_context(self, query, max_results=5, cost_callback=None):
-        compressed_docs = self.__get_contextual_retriever()
-        if cost_callback:
-            cost_callback(estimate_embedding_cost(model=OPENAI_EMBEDDING_MODEL, docs=self.documents))
-        relevant_docs = await asyncio.to_thread(compressed_docs.invoke, query, **self.kwargs)
-        return self.prompt_family.pretty_print_docs(relevant_docs, max_results)
+        try:
+            compressed_docs = self.__get_contextual_retriever()
+            if cost_callback and self.documents:
+                cost_callback(estimate_embedding_cost(model=OPENAI_EMBEDDING_MODEL, docs=self.documents))
+            relevant_docs = await asyncio.to_thread(compressed_docs.invoke, query, **self.kwargs)
+            return self.prompt_family.pretty_print_docs(relevant_docs, max_results)
+        except Exception as e:
+            print(f"Error in ContextCompressor.async_get_context: {e}")
+            # Return empty string on error to prevent cascading failures
+            return ""
 
 
 class WrittenContentCompressor:
@@ -103,8 +108,13 @@ class WrittenContentCompressor:
         return [f"Title: {d.metadata.get('section_title')}\nContent: {d.page_content}\n" for i, d in enumerate(docs) if i < top_n]
 
     async def async_get_context(self, query, max_results=5, cost_callback=None):
-        compressed_docs = self.__get_contextual_retriever()
-        if cost_callback:
-            cost_callback(estimate_embedding_cost(model=OPENAI_EMBEDDING_MODEL, docs=self.documents))
-        relevant_docs = await asyncio.to_thread(compressed_docs.invoke, query, **self.kwargs)
-        return self.__pretty_docs_list(relevant_docs, max_results)
+        try:
+            compressed_docs = self.__get_contextual_retriever()
+            if cost_callback and self.documents:
+                cost_callback(estimate_embedding_cost(model=OPENAI_EMBEDDING_MODEL, docs=self.documents))
+            relevant_docs = await asyncio.to_thread(compressed_docs.invoke, query, **self.kwargs)
+            return self.__pretty_docs_list(relevant_docs, max_results)
+        except Exception as e:
+            print(f"Error in WrittenContentCompressor.async_get_context: {e}")
+            # Return empty list on error to prevent cascading failures
+            return []

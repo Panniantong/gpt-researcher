@@ -1,5 +1,9 @@
 import os
 from typing import Any
+import logging
+from .robust_embeddings import create_robust_embeddings
+
+logger = logging.getLogger(__name__)
 
 OPENAI_EMBEDDING_MODEL = os.environ.get(
     "OPENAI_EMBEDDING_MODEL", "text-embedding-3-large"
@@ -43,19 +47,27 @@ class Memory:
                     **embdding_kwargs,
                 )  # quick fix for lmstudio
             case "openai":
-                from langchain_openai import OpenAIEmbeddings
-
-                _embeddings = OpenAIEmbeddings(model=model, **embdding_kwargs)
+                # Use robust embeddings wrapper to handle None responses
+                robust_embeddings = create_robust_embeddings("openai", model, **embdding_kwargs)
+                if robust_embeddings:
+                    _embeddings = robust_embeddings
+                else:
+                    from langchain_openai import OpenAIEmbeddings
+                    _embeddings = OpenAIEmbeddings(model=model, **embdding_kwargs)
             case "azure_openai":
-                from langchain_openai import AzureOpenAIEmbeddings
-
-                _embeddings = AzureOpenAIEmbeddings(
-                    model=model,
-                    azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
-                    openai_api_key=os.environ["AZURE_OPENAI_API_KEY"],
-                    openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"],
-                    **embdding_kwargs,
-                )
+                # Use robust embeddings wrapper to handle None responses
+                robust_embeddings = create_robust_embeddings("azure_openai", model, **embdding_kwargs)
+                if robust_embeddings:
+                    _embeddings = robust_embeddings
+                else:
+                    from langchain_openai import AzureOpenAIEmbeddings
+                    _embeddings = AzureOpenAIEmbeddings(
+                        model=model,
+                        azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
+                        openai_api_key=os.environ["AZURE_OPENAI_API_KEY"],
+                        openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"],
+                        **embdding_kwargs,
+                    )
             case "cohere":
                 from langchain_cohere import CohereEmbeddings
 
@@ -133,4 +145,6 @@ class Memory:
         self._embeddings = _embeddings
 
     def get_embeddings(self):
+        if self._embeddings is None:
+            raise ValueError("Embeddings not initialized. Please check your embedding provider configuration.")
         return self._embeddings

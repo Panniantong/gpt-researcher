@@ -19,7 +19,25 @@ def estimate_llm_cost(input_content: str, output_content: str) -> float:
 
 
 def estimate_embedding_cost(model, docs):
-    encoding = tiktoken.encoding_for_model(model)
-    total_tokens = sum(len(encoding.encode(str(doc))) for doc in docs)
+    # Handle None or empty docs
+    if not docs:
+        return 0.0
+    
+    try:
+        encoding = tiktoken.encoding_for_model(model)
+    except KeyError:
+        # Fallback to a default encoding if model is not recognized
+        encoding = tiktoken.get_encoding(ENCODING_MODEL)
+    
+    total_tokens = 0
+    for doc in docs:
+        if doc is not None:
+            try:
+                total_tokens += len(encoding.encode(str(doc)))
+            except Exception as e:
+                # Log the error but continue processing other docs
+                print(f"Warning: Error encoding document: {e}")
+                continue
+    
     return total_tokens * EMBEDDING_COST
 

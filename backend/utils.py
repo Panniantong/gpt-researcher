@@ -34,14 +34,33 @@ async def write_text_to_md(text: str, filename: str = "") -> str:
 
 async def write_md_to_pdf(text: str, filename: str = "") -> str:
     """Converts Markdown text to a PDF file and returns the file path.
+    If PDF generation is disabled or fails, falls back to creating a Markdown file.
 
     Args:
         text (str): Markdown text to convert.
 
     Returns:
-        str: The encoded file path of the generated PDF.
+        str: The encoded file path of the generated PDF or Markdown file.
     """
+    import os
+
     file_path = f"outputs/{filename[:60]}.pdf"
+    fallback_path = f"outputs/{filename[:60]}.md"
+
+    # Check if PDF generation is enabled
+    enable_pdf = os.getenv('ENABLE_PDF_GENERATION', 'true').lower() == 'true'
+
+    if not enable_pdf:
+        print("PDF generation is disabled. Creating Markdown file instead...")
+        try:
+            with open(fallback_path, 'w', encoding='utf-8') as f:
+                f.write(text)
+            print(f"Report written to {fallback_path}")
+            encoded_file_path = urllib.parse.quote(fallback_path)
+            return encoded_file_path
+        except Exception as fallback_error:
+            print(f"Error in creating Markdown file: {fallback_error}")
+            return ""
 
     try:
         from md2pdf.core import md2pdf
@@ -51,12 +70,22 @@ async def write_md_to_pdf(text: str, filename: str = "") -> str:
                css_file_path="./frontend/pdf_styles.css",
                base_url=None)
         print(f"Report written to {file_path}")
+        encoded_file_path = urllib.parse.quote(file_path)
+        return encoded_file_path
     except Exception as e:
         print(f"Error in converting Markdown to PDF: {e}")
-        return ""
+        print(f"Falling back to Markdown format...")
 
-    encoded_file_path = urllib.parse.quote(file_path)
-    return encoded_file_path
+        # Fallback: save as Markdown file
+        try:
+            with open(fallback_path, 'w', encoding='utf-8') as f:
+                f.write(text)
+            print(f"Report written to {fallback_path}")
+            encoded_file_path = urllib.parse.quote(fallback_path)
+            return encoded_file_path
+        except Exception as fallback_error:
+            print(f"Error in creating Markdown file: {fallback_error}")
+            return ""
 
 async def write_md_to_word(text: str, filename: str = "") -> str:
     """Converts Markdown text to a DOCX file and returns the file path.

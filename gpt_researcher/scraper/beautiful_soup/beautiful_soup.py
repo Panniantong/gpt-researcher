@@ -21,7 +21,8 @@ class BeautifulSoupScraper:
         occurs during the process, an error message is printed and an empty string is returned.
         """
         try:
-            response = self.session.get(self.link, timeout=4)
+            # Increased timeout from 4 to 30 seconds to handle slower websites
+            response = self.session.get(self.link, timeout=30)
             soup = BeautifulSoup(
                 response.content, "lxml", from_encoding=response.encoding
             )
@@ -38,5 +39,9 @@ class BeautifulSoupScraper:
             return content, image_urls, title
 
         except Exception as e:
-            print("Error! : " + str(e))
+            error_type = type(e).__name__
+            if "timeout" in str(e).lower():
+                print(f"Timeout error scraping {self.link}: {error_type} - {str(e)}")
+            else:
+                print(f"Error scraping {self.link}: {error_type} - {str(e)}")
             return "", [], ""
