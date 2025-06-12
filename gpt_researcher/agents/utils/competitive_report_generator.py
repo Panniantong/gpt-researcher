@@ -239,7 +239,15 @@ class CompetitiveReportGenerator:
         section += "**G1 Growth Timeline & Milestones**\n"
         if milestones := growth.get("timeline_milestones", []):
             for milestone in milestones[:7]:  # 列表不超过7条
-                section += f"- {milestone.get('date', '')}: {milestone.get('event', '')}\n"
+                # 添加类型检查，确保milestone是字典类型
+                if isinstance(milestone, dict):
+                    section += f"- {milestone.get('date', '')}: {milestone.get('event', '')}\n"
+                elif isinstance(milestone, str):
+                    # 如果是字符串，直接使用
+                    section += f"- {milestone}\n"
+                else:
+                    # 其他类型，转换为字符串
+                    section += f"- {str(milestone)}\n"
         else:
             section += "⚠︎ Info insufficient (Searched: company history, milestones, growth timeline)\n"
         
@@ -247,7 +255,15 @@ class CompetitiveReportGenerator:
         section += "\n**G2 Growth Channels & Tactics**\n"
         if channels := growth.get("channels_tactics", []):
             for channel in channels[:7]:  # 列表不超过7条
-                section += f"- {channel.get('channel', '')}: {channel.get('tactic', '')}\n"
+                # 添加类型检查，确保channel是字典类型
+                if isinstance(channel, dict):
+                    section += f"- {channel.get('channel', '')}: {channel.get('tactic', '')}\n"
+                elif isinstance(channel, str):
+                    # 如果是字符串，直接使用
+                    section += f"- {channel}\n"
+                else:
+                    # 其他类型，转换为字符串
+                    section += f"- {str(channel)}\n"
         else:
             section += "⚠︎ Info insufficient (Searched: marketing strategy, growth channels, acquisition tactics)\n"
         

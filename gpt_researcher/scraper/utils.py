@@ -48,13 +48,39 @@ def get_relevant_images(soup: BeautifulSoup, url: str) -> list:
         return []
 
 def parse_dimension(value: str) -> int:
-    """Parse dimension value, handling px units"""
+    """Parse dimension value, handling px units, percentages, and CSS values"""
+    if not value:
+        return None
+
+    # Convert to string if not already
+    value = str(value).strip()
+
+    # Handle common CSS values that can't be converted to numbers
+    if value.lower() in ['auto', 'inherit', 'initial', 'unset', 'none']:
+        return None
+
+    # Handle percentage values - return None as we can't determine absolute size
+    if value.endswith('%'):
+        return None
+
+    # Handle viewport units (vw, vh, vmin, vmax) - return None
+    if any(value.lower().endswith(unit) for unit in ['vw', 'vh', 'vmin', 'vmax']):
+        return None
+
+    # Handle em, rem units - return None as we can't determine absolute size
+    if any(value.lower().endswith(unit) for unit in ['em', 'rem']):
+        return None
+
+    # Remove 'px' suffix if present
     if value.lower().endswith('px'):
-        value = value[:-2]  # Remove 'px' suffix
+        value = value[:-2]
+
     try:
-        return int(value)  # Convert to float first to handle decimal values
-    except ValueError as e:
-        print(f"Error parsing dimension value {value}: {e}")
+        # First convert to float to handle decimal values, then to int
+        float_value = float(value)
+        return int(float_value)
+    except (ValueError, TypeError):
+        # Silently return None for unparseable values to reduce noise
         return None
 
 def extract_title(soup: BeautifulSoup) -> str:

@@ -35,17 +35,14 @@ class Memory:
         _embeddings = None
         match embedding_provider:
             case "custom":
-                from langchain_openai import OpenAIEmbeddings
+                # 使用自定义embedding客户端处理非标准API响应
+                from .custom_embeddings import create_custom_embeddings
 
-                _embeddings = OpenAIEmbeddings(
+                _embeddings = create_custom_embeddings(
                     model=model,
-                    openai_api_key=os.getenv("OPENAI_API_KEY", "custom"),
-                    openai_api_base=os.getenv(
-                        "OPENAI_BASE_URL", "http://localhost:1234/v1"
-                    ),  # default for lmstudio
-                    check_embedding_ctx_length=False,
-                    **embdding_kwargs,
-                )  # quick fix for lmstudio
+                    api_key=os.getenv("OPENAI_API_KEY", "custom"),
+                    base_url=os.getenv("OPENAI_BASE_URL", "http://localhost:1234/v1")
+                )
             case "openai":
                 # Use robust embeddings wrapper to handle None responses
                 robust_embeddings = create_robust_embeddings("openai", model, **embdding_kwargs)

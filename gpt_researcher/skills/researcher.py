@@ -678,7 +678,7 @@ class ResearchConductor:
             self.logger.info(f"Combined context for '{sub_query}': {len(final_context)} total chars")
             return final_context
         else:
-            self.logger.warning(f"No context to combine for sub-query: {sub_query}")
+            self.logger.debug(f"No context found for sub-query: {sub_query}")
             return ""
 
     async def _process_sub_query_with_vectorstore(self, sub_query: str, filter: dict | None = None):
