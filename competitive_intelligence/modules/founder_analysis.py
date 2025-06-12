@@ -26,7 +26,10 @@ class FounderAnalyzer:
         Returns:
             搜索查询列表
         """
-        
+        # 验证产品名称是否有效
+        if not product_name or "not found" in product_name.lower() or "⚠" in product_name:
+            # 如果产品名无效，返回空列表或基础查询
+            return []
         
         prompt = SEARCH_QUERY_GENERATOR.format(
             product_name=product_name,

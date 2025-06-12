@@ -119,19 +119,45 @@ class BasicInfoExtractor:
         Returns:
             验证后的信息字典
         """
-        required_fields = ["name", "one_liner", "type"]
+        # 定义字段映射，处理大小写不一致的问题
+        field_mapping = {
+            "name": ["name", "Name", "产品名称"],
+            "one_liner": ["one_liner", "One-liner", "oneLiner", "tagline", "Tagline", "一句话描述"],
+            "type": ["type", "Type", "产品类型"],
+            "url": ["url", "URL", "官方网址", "website", "Website"],
+            "launch_status": ["launch_status", "Launch Status", "launchStatus", "status", "发布状态"],
+            "founded": ["founded", "Founded", "创立时间", "founded_date"],
+            "team_size": ["team_size", "Team Size", "teamSize", "团队规模"]
+        }
+        
         validated = {}
         
+        # 处理必需字段
+        required_fields = ["name", "one_liner", "type"]
         for field in required_fields:
-            if field in info and info[field]:
-                validated[field] = info[field]
+            value = None
+            # 尝试从不同的可能键名中获取值
+            for possible_key in field_mapping.get(field, [field]):
+                if possible_key in info and info[possible_key]:
+                    value = info[possible_key]
+                    break
+            
+            if value:
+                validated[field] = value
             else:
                 validated[field] = f"⚠︎ {field} not found"
         
-        # 复制其他字段
+        # 处理可选字段
         optional_fields = ["url", "launch_status", "founded", "team_size"]
         for field in optional_fields:
-            if field in info:
-                validated[field] = info[field]
+            value = None
+            # 尝试从不同的可能键名中获取值
+            for possible_key in field_mapping.get(field, [field]):
+                if possible_key in info and info[possible_key]:
+                    value = info[possible_key]
+                    break
+            
+            if value:
+                validated[field] = value
         
         return validated

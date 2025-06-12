@@ -52,7 +52,7 @@ class CompetitiveIntelligenceAgent:
         
         # 配置
         self.config = Config(config_path)
-        self.llm_provider = llm_provider or self.config.llm_provider
+        self.llm_provider = llm_provider or self.config.fast_llm_provider
         self.model = model or self.config.fast_llm_model
         
         # 初始化各个分析模块
@@ -189,6 +189,11 @@ class CompetitiveIntelligenceAgent:
         """调研创始人背景"""
         product_name = self.results["basic_info"].get("name", self.query)
         
+        # 验证产品名称是否有效
+        if not product_name or "not found" in product_name.lower() or "⚠" in product_name:
+            # 使用原始查询词
+            product_name = self.query
+        
         # 生成搜索查询
         queries = await self.founder_analyzer.generate_search_queries(
             product_name,
@@ -234,6 +239,11 @@ class CompetitiveIntelligenceAgent:
     async def _analyze_marketing_strategy(self):
         """分析营销策略"""
         product_name = self.results["basic_info"].get("name", self.query)
+        
+        # 验证产品名称是否有效
+        if not product_name or "not found" in product_name.lower() or "⚠" in product_name:
+            # 使用原始查询词
+            product_name = self.query
         
         # 生成营销相关查询
         queries = await self.marketing_analyzer.generate_marketing_research_queries(
