@@ -12,10 +12,6 @@ from gpt_researcher.agent import GPTResearcher
 from gpt_researcher.config import Config
 from gpt_researcher.utils.logger import get_formatted_logger
 from gpt_researcher.agents.utils import CompetitiveQueryBuilder, CompetitiveReportGenerator
-from gpt_researcher.skills.deep_research import DeepResearchSkill, trim_context_to_word_limit
-from gpt_researcher.skills.researcher import ResearchConductor
-from gpt_researcher.skills.context_manager import ContextManager
-from gpt_researcher.actions.utils import stream_output
 
 
 logger = get_formatted_logger()
@@ -94,91 +90,6 @@ class ExecutiveSummary:
     ai_strategy: str = ""
 
 
-class CompetitiveDeepResearch(DeepResearchSkill):
-    """专门用于竞品深度研究的技能类"""
-    
-    def __init__(self, agent):
-        """
-        初始化竞品深度研究技能
-        
-        Args:
-            agent: CompetitiveIntelligenceAgent 实例
-        """
-        # 传递 agent 本身作为 researcher
-        super().__init__(agent)
-        self.agent = agent
-        
-    async def research_aspect(self, aspect: str, breadth: int = 3, depth: int = 2, on_progress=None):
-        """
-        针对产品的特定方面进行深度研究
-        
-        Args:
-            aspect: 要研究的方面关键词
-            breadth: 每层的搜索广度
-            depth: 搜索深度层数
-            on_progress: 进度回调函数
-            
-        Returns:
-            Dict[str, Any]: 深度研究结果
-        """
-        query = f"{self.agent.product_name} {aspect}"
-        return await self.deep_research(
-            query=query,
-            breadth=breadth,
-            depth=depth,
-            on_progress=on_progress
-        )
-    
-    async def parallel_research_aspects(self, aspects: Dict[str, str], breadth: int = 3, depth: int = 2) -> Dict[str, Any]:
-        """
-        并行研究多个方面
-        
-        Args:
-            aspects: 方面名称到关键词的映射
-            breadth: 每层的搜索广度
-            depth: 搜索深度层数
-            
-        Returns:
-            Dict[str, Any]: 合并的研究结果
-        """
-        tasks = []
-        aspect_names = []
-        
-        for aspect_name, keywords in aspects.items():
-            query = f"{self.agent.product_name} {keywords}"
-            task = self.deep_research(
-                query=query,
-                breadth=breadth,
-                depth=depth
-            )
-            tasks.append(task)
-            aspect_names.append(aspect_name)
-        
-        # 并行执行所有研究
-        results = await asyncio.gather(*tasks)
-        
-        # 合并结果
-        combined = {
-            'learnings': [],
-            'citations': {},
-            'context': [],
-            'sources': [],
-            'by_aspect': {}
-        }
-        
-        for aspect_name, result in zip(aspect_names, results):
-            combined['learnings'].extend(result.get('learnings', []))
-            combined['citations'].update(result.get('citations', {}))
-            combined['context'].extend(result.get('context', []))
-            combined['sources'].extend(result.get('sources', []))
-            combined['by_aspect'][aspect_name] = result
-        
-        # 修剪上下文以符合字数限制
-        combined['context'] = trim_context_to_word_limit(combined['context'])
-        
-        return combined
-
-
 class CompetitiveIntelligenceAgent(GPTResearcher):
     """
     竞品情报研究代理
@@ -216,16 +127,6 @@ class CompetitiveIntelligenceAgent(GPTResearcher):
         self.query_builder = CompetitiveQueryBuilder(product_name, product_url)
         self.report_generator = CompetitiveReportGenerator()
         
-        # 确保 retrievers 已初始化
-        if not hasattr(self, 'retrievers') or not self.retrievers:
-            from gpt_researcher.actions import get_retrievers
-            self.retrievers = get_retrievers(self.headers, self.cfg)
-        
-        # 初始化深度研究组件
-        self.deep_research_skill = CompetitiveDeepResearch(self)
-        self.research_conductor = ResearchConductor(self)
-        self.context_manager = ContextManager(self)
-        
         # 初始化各模块数据结构
         self.product_info = ProductInfo(name=product_name, url=product_url or "")
         self.founder_info = FounderInfo()
@@ -238,50 +139,25 @@ class CompetitiveIntelligenceAgent(GPTResearcher):
         self.all_sources: set = set()
         self.sources: List[Dict[str, str]] = []  # 用于存储详细的来源信息
         
-        # 进度追踪
-        self.on_progress = None
-        
-        logger.info(f"Initialized CompetitiveIntelligenceAgent with deep research capabilities for product: {product_name}")
+        logger.info(f"Initialized CompetitiveIntelligenceAgent for product: {product_name}")
     
-    async def conduct_research(self, on_progress=None) -> Dict[str, Any]:
+    async def conduct_research(self) -> Dict[str, Any]:
         """
         执行完整的竞品情报研究流程
-        
-        Args:
-            on_progress: 进度回调函数
-            
-        Returns:
-            Dict[str, Any]: 研究结果
         """
-        logger.info(f"Starting deep competitive intelligence research for {self.product_name}")
-        
-        # 设置进度回调
-        if on_progress:
-            self.on_progress = on_progress
-        
-        # 记录初始成本
-        initial_costs = self.get_costs()
+        logger.info(f"Starting competitive intelligence research for {self.product_name}")
         
         try:
-            # 显示开始信息
-            if self.verbose and self.websocket:
-                await stream_output(
-                    "logs",
-                    "research_start",
-                    f"🚀 开始对 {self.product_name} 进行深度竞品情报研究...",
-                    self.websocket
-                )
-            
             # 1. 基础信息收集
             await self._research_basic_info()
             
-            # 2. 创始人/团队情报（使用深度研究）
+            # 2. 创始人/团队情报
             await self._research_founder_intelligence()
             
-            # 3. 八维分析（使用深度研究）
+            # 3. 八维分析
             await self._research_eight_dimensions()
             
-            # 4. 营销情报（使用深度研究）
+            # 4. 营销情报
             await self._research_growth_intelligence()
             
             # 5. 复刻评估
@@ -296,24 +172,11 @@ class CompetitiveIntelligenceAgent(GPTResearcher):
             # 8. 生成最终报告
             final_report = await self._generate_final_report()
             
-            # 计算总成本
-            total_costs = self.get_costs() - initial_costs
-            logger.info(f"深度研究总成本: ${total_costs:.2f}")
-            
-            if self.verbose and self.websocket:
-                await stream_output(
-                    "logs",
-                    "research_complete",
-                    f"✅ 研究完成！总成本: ${total_costs:.2f}",
-                    self.websocket
-                )
-            
             return {
                 "report": final_report,
                 "validation": validation_result,
                 "sources": list(self.all_sources),
-                "timestamp": datetime.now().isoformat(),
-                "total_costs": total_costs
+                "timestamp": datetime.now().isoformat()
             }
             
         except Exception as e:
@@ -321,169 +184,93 @@ class CompetitiveIntelligenceAgent(GPTResearcher):
             raise
     
     async def _research_basic_info(self):
-        """研究基础信息模块 - 使用深度研究"""
-        logger.info("Deep researching basic product information...")
+        """研究基础信息模块"""
+        logger.info("Researching basic product information...")
         
-        if self.verbose and self.websocket:
-            await stream_output(
-                "logs",
-                "researching_basic_info",
-                f"📊 深度研究 {self.product_name} 的基础信息...",
-                self.websocket
-            )
+        # 使用查询构建器获取查询
+        query_template = self.query_builder._build_basic_info_queries()
         
-        # 使用深度研究获取基础信息
-        basic_info_keywords = "company overview product description team size funding launch date one-liner"
-        
-        results = await self.deep_research_skill.research_aspect(
-            aspect=basic_info_keywords,
-            breadth=3,
-            depth=1  # 基础信息只需要浅层研究
-        )
+        # 并行执行搜索
+        search_results = await self._parallel_search(query_template.queries)
         
         # 记录搜索轨迹
-        self.product_info.search_traces = [f"Deep research: {basic_info_keywords}"]
-        
-        # 处理深度研究结果
-        context = results.get('context', [])
-        learnings = results.get('learnings', [])
-        citations = results.get('citations', {})
-        sources = results.get('sources', [])
-        
-        # 更新来源
-        for source in sources:
-            if source and isinstance(source, dict):
-                url = source.get('url', '')
-                if url:
-                    self.all_sources.add(url)
+        self.product_info.search_traces = query_template.queries
         
         # 提取和验证信息
-        await self._extract_basic_info_from_deep_research(context, learnings, citations)
+        await self._extract_basic_info(search_results)
     
     async def _research_founder_intelligence(self):
-        """研究创始人/团队情报 - 使用深度研究"""
-        logger.info("Deep researching founder and team intelligence...")
+        """研究创始人/团队情报"""
+        logger.info("Researching founder and team intelligence...")
         
-        if self.verbose and self.websocket:
-            await stream_output(
-                "logs",
-                "researching_founders",
-                f"👤 深度研究 {self.product_name} 的创始人和团队背景...",
-                self.websocket
-            )
+        queries = [
+            f"{self.product_name} founder CEO LinkedIn",
+            f"{self.product_name} founding team background",
+            f"{self.product_name} founder previous experience",
+            f"{self.product_name} team technical expertise"
+        ]
         
-        # 使用深度研究获取创始人情报
-        founder_keywords = "founder CEO team background LinkedIn previous experience expertise achievements unfair advantages"
-        
-        results = await self.deep_research_skill.research_aspect(
-            aspect=founder_keywords,
-            breadth=4,
-            depth=2,  # 创始人信息需要深度挖掘
-            on_progress=self.on_progress
-        )
-        
-        # 处理深度研究结果
-        context = results.get('context', [])
-        learnings = results.get('learnings', [])
-        citations = results.get('citations', {})
-        sources = results.get('sources', [])
-        
-        # 更新来源
-        for source in sources:
-            if source and isinstance(source, dict):
-                url = source.get('url', '')
-                if url:
-                    self.all_sources.add(url)
-        
-        # 提取创始人信息
-        await self._extract_founder_info_from_deep_research(context, learnings, citations)
+        search_results = await self._parallel_search(queries)
+        await self._extract_founder_info(search_results)
     
     async def _research_eight_dimensions(self):
-        """执行八维分析 - 使用并行深度研究"""
-        logger.info("Deep researching eight dimensions analysis...")
+        """执行八维分析"""
+        logger.info("Conducting eight-dimension analysis...")
         
-        if self.verbose and self.websocket:
-            await stream_output(
-                "logs",
-                "researching_dimensions",
-                f"🔍 对 {self.product_name} 进行深度八维分析...",
-                self.websocket
-            )
+        # Q2: Fixed Broken Spot
+        broken_spot_queries = [
+            f"{self.product_name} solves problem",
+            f"{self.product_name} vs alternatives comparison",
+            f"{self.product_name} unique value proposition"
+        ]
         
-        # 定义八个维度的研究方向
-        dimensions = {
-            "pitch": "one sentence description what product does",
-            "broken_spot": "problem solution unique value proposition vs alternatives",
-            "urgency": "user testimonials reviews customer success stories adoption rate",
-            "who_when_action": "target users use cases when they use product actions",
-            "pain_level": "pain points severity user frustration before solution",
-            "arena": "market competition landscape competitors market share growth",
-            "uniqueness": "first mover pioneer unique features patents market position",
-            "implementation": "technology stack architecture API integration GitHub technical approach"
-        }
+        # Q3: User Urgency
+        urgency_queries = [
+            f"{self.product_name} user testimonials reviews",
+            f"{self.product_name} customer success stories",
+            f"{self.product_name} user adoption rate"
+        ]
         
-        # 使用并行深度研究
-        results = await self.deep_research_skill.parallel_research_aspects(
-            aspects=dimensions,
-            breadth=3,
-            depth=2
-        )
+        # Q6: Arena & Scoring Rule
+        arena_queries = [
+            f"{self.product_name} market competition landscape",
+            f"{self.product_name} vs competitors comparison",
+            f"{self.product_name} market share growth"
+        ]
         
-        # 处理合并的结果
-        all_context = results.get('context', [])
-        all_learnings = results.get('learnings', [])
-        all_citations = results.get('citations', {})
-        by_aspect = results.get('by_aspect', {})
+        # Q7: First/Only/Number
+        uniqueness_queries = [
+            f"{self.product_name} first in market pioneer",
+            f"{self.product_name} unique features patents",
+            f"{self.product_name} market position ranking"
+        ]
         
-        # 更新来源
-        for source in results.get('sources', []):
-            if source and isinstance(source, dict):
-                url = source.get('url', '')
-                if url:
-                    self.all_sources.add(url)
+        # Q8: Implementation Architecture
+        tech_queries = [
+            f"{self.product_name} technology stack architecture",
+            f"{self.product_name} API integration features",
+            f"{self.product_name} GitHub open source"
+        ]
         
-        # 提取八维信息
-        await self._extract_eight_dimensions_from_deep_research(by_aspect, all_context, all_learnings, all_citations)
+        all_queries = broken_spot_queries + urgency_queries + arena_queries + uniqueness_queries + tech_queries
+        search_results = await self._parallel_search(all_queries)
+        await self._extract_eight_dimensions(search_results)
     
     async def _research_growth_intelligence(self):
-        """研究营销情报 - 使用深度研究"""
-        logger.info("Deep researching growth and marketing intelligence...")
+        """研究营销情报"""
+        logger.info("Researching growth and marketing intelligence...")
         
-        if self.verbose and self.websocket:
-            await stream_output(
-                "logs",
-                "researching_growth",
-                f"📈 深度研究 {self.product_name} 的增长和营销策略...",
-                self.websocket
-            )
+        queries = [
+            f"{self.product_name} growth timeline milestones",
+            f"{self.product_name} marketing strategy channels",
+            f"{self.product_name} user acquisition tactics",
+            f"{self.product_name} ProductHunt launch",
+            f"{self.product_name} social media marketing Twitter",
+            f"{self.product_name} content marketing blog SEO"
+        ]
         
-        # 使用深度研究获取营销情报
-        growth_keywords = """growth timeline milestones funding rounds user acquisition 
-                           marketing strategy channels ProductHunt launch social media 
-                           content marketing SEO blog Twitter community building"""
-        
-        results = await self.deep_research_skill.research_aspect(
-            aspect=growth_keywords,
-            breadth=4,
-            depth=2,
-            on_progress=self.on_progress
-        )
-        
-        # 处理深度研究结果
-        context = results.get('context', [])
-        learnings = results.get('learnings', [])
-        citations = results.get('citations', {})
-        sources = results.get('sources', [])
-        
-        # 更新来源
-        for source in sources:
-            if source and isinstance(source, dict):
-                url = source.get('url', '')
-                if url:
-                    self.all_sources.add(url)
-        
-        # 提取营销情报
-        await self._extract_growth_intelligence_from_deep_research(context, learnings, citations)
+        search_results = await self._parallel_search(queries)
+        await self._extract_growth_intelligence(search_results)
     
     async def _assess_feasibility(self):
         """评估复刻可行性"""
@@ -1123,345 +910,3 @@ Return ONLY the JSON object, no additional text."""
                     
         except Exception as e:
             logger.error(f"Error synthesizing summary: {str(e)}")
-    
-    # 深度研究结果提取方法
-    async def _extract_basic_info_from_deep_research(self, context: List[str], learnings: List[str], citations: Dict[str, str]):
-        """从深度研究结果中提取基础信息"""
-        try:
-            # 组合上下文和学习要点
-            combined_context = "\n\n".join(context[:5]) if context else ""
-            learnings_text = "\n".join([f"- {learning}" for learning in learnings]) if learnings else ""
-            
-            # 添加引用信息
-            cited_context = []
-            for learning in learnings[:5]:
-                citation = citations.get(learning, '')
-                if citation:
-                    cited_context.append(f"{learning} [Source: {citation}]")
-                else:
-                    cited_context.append(learning)
-            
-            full_context = f"""
-Deep Research Learnings:
-{chr(10).join(cited_context)}
-
-Additional Context:
-{combined_context}
-"""
-            
-            prompt = f"""Based on the deep research findings about {self.product_name}, extract the basic information:
-
-{full_context}
-
-Please extract and return the following information in JSON format:
-{{
-    "team_size": "number or 'Info insufficient'",
-    "one_liner": "brief product description or 'Info insufficient'",
-    "product_type": "B2B/B2C/Developer Tool/etc. or 'Info insufficient'", 
-    "launch_status": "launched/beta/coming soon or 'Info insufficient'",
-    "founded_year": "YYYY or 'Info insufficient'"
-}}
-
-IMPORTANT:
-- Prioritize information from the learnings section
-- Include citations where available
-- If information is not found, use 'Info insufficient'
-- Be specific and accurate
-
-Return ONLY the JSON object, no additional text."""
-            
-            # 使用LLM提取信息
-            from gpt_researcher.utils.llm import create_chat_completion
-            response = await create_chat_completion(
-                messages=[
-                    {"role": "system", "content": "You are a competitive intelligence analyst extracting product information from deep research."},
-                    {"role": "user", "content": prompt}
-                ],
-                model=self.cfg.smart_llm_model,
-                temperature=0.1,
-                max_tokens=1000,
-                llm_provider=self.cfg.smart_llm_provider,
-                llm_kwargs=self.cfg.llm_kwargs
-            )
-            
-            # 解析响应并更新信息
-            import json
-            try:
-                extracted_info = json.loads(response)
-                
-                if extracted_info.get('team_size') and extracted_info.get('team_size') != 'Info insufficient':
-                    self.product_info.team_size = extracted_info['team_size']
-                    
-                if extracted_info.get('one_liner') and extracted_info.get('one_liner') != 'Info insufficient':
-                    self.product_info.one_liner = extracted_info['one_liner']
-                    
-                if extracted_info.get('product_type') and extracted_info.get('product_type') != 'Info insufficient':
-                    self.product_info.type = extracted_info['product_type']
-                    
-                if extracted_info.get('launch_status') and extracted_info.get('launch_status') != 'Info insufficient':
-                    self.product_info.launch_status = extracted_info['launch_status']
-                    
-                if extracted_info.get('founded_year') and extracted_info.get('founded_year') != 'Info insufficient':
-                    self.product_info.founded = extracted_info['founded_year']
-                    
-            except json.JSONDecodeError:
-                logger.warning("Failed to parse JSON from LLM response for basic info")
-                
-        except Exception as e:
-            logger.error(f"Error extracting basic info from deep research: {str(e)}")
-    
-    async def _extract_founder_info_from_deep_research(self, context: List[str], learnings: List[str], citations: Dict[str, str]):
-        """从深度研究结果中提取创始人信息"""
-        try:
-            # 组合带引用的学习要点
-            cited_learnings = []
-            for learning in learnings:
-                citation = citations.get(learning, '')
-                if citation:
-                    cited_learnings.append(f"{learning} [Source: {citation}]")
-                else:
-                    cited_learnings.append(learning)
-            
-            full_context = f"""
-Deep Research Findings on Founders/Team:
-
-Key Learnings:
-{chr(10).join(cited_learnings[:10])}
-
-Additional Context:
-{chr(10).join(context[:3]) if context else 'No additional context'}
-"""
-            
-            prompt = f"""Based on the deep research findings about {self.product_name}'s founders and team, extract detailed information:
-
-{full_context}
-
-Please extract and return the following information in JSON format:
-{{
-    "founder_portrait": "Detailed founder information including names, background, experience, education, achievements, expertise. Include sources. Or 'Info insufficient'",
-    "unfair_advantages": "Industry connections, technical expertise, previous exits, domain expertise, team strengths. Include sources. Or 'Info insufficient'",
-    "ai_validation": "AI expertise, industry knowledge, notable advisors/investors. Include sources. Or 'Info insufficient'"
-}}
-
-IMPORTANT:
-- Include specific names, companies, and achievements
-- Cite sources inline using [Source: URL] format
-- Be comprehensive but factual
-- If information is not found, use 'Info insufficient'
-
-Return ONLY the JSON object, no additional text."""
-            
-            # 使用LLM提取信息
-            from gpt_researcher.utils.llm import create_chat_completion
-            response = await create_chat_completion(
-                messages=[
-                    {"role": "system", "content": "You are a competitive intelligence analyst specializing in founder and team analysis."},
-                    {"role": "user", "content": prompt}
-                ],
-                model=self.cfg.smart_llm_model,
-                temperature=0.1,
-                max_tokens=2000,
-                llm_provider=self.cfg.smart_llm_provider,
-                llm_kwargs=self.cfg.llm_kwargs
-            )
-            
-            # 解析响应并更新信息
-            import json
-            try:
-                extracted_info = json.loads(response)
-                
-                if extracted_info.get('founder_portrait') and extracted_info.get('founder_portrait') != 'Info insufficient':
-                    self.founder_info.profile['portrait'] = extracted_info['founder_portrait']
-                    
-                if extracted_info.get('unfair_advantages') and extracted_info.get('unfair_advantages') != 'Info insufficient':
-                    self.founder_info.unfair_advantages['summary'] = extracted_info['unfair_advantages']
-                    
-                if extracted_info.get('ai_validation') and extracted_info.get('ai_validation') != 'Info insufficient':
-                    self.founder_info.validation = extracted_info['ai_validation']
-                    
-                # 更新来源
-                self.founder_info.sources = list(citations.values())[:10]
-                
-            except json.JSONDecodeError:
-                logger.warning("Failed to parse JSON from LLM response for founder info")
-                
-        except Exception as e:
-            logger.error(f"Error extracting founder info from deep research: {str(e)}")
-    
-    async def _extract_eight_dimensions_from_deep_research(self, by_aspect: Dict[str, Any], all_context: List[str], 
-                                                          all_learnings: List[str], all_citations: Dict[str, str]):
-        """从深度研究结果中提取八维分析信息"""
-        try:
-            # 为每个维度准备特定的上下文
-            dimension_contexts = {}
-            
-            for aspect_name, aspect_data in by_aspect.items():
-                learnings = aspect_data.get('learnings', [])
-                context = aspect_data.get('context', [])
-                citations = aspect_data.get('citations', {})
-                
-                # 组合带引用的内容
-                cited_content = []
-                for learning in learnings[:3]:
-                    citation = citations.get(learning, '')
-                    if citation:
-                        cited_content.append(f"{learning} [Source: {citation}]")
-                    else:
-                        cited_content.append(learning)
-                
-                dimension_contexts[aspect_name] = {
-                    'learnings': cited_content,
-                    'context': context[:2] if context else []
-                }
-            
-            # 构建综合提示
-            dimensions_text = ""
-            for aspect, data in dimension_contexts.items():
-                dimensions_text += f"\n{aspect.upper()}:\n"
-                dimensions_text += "Learnings:\n" + "\n".join(data['learnings']) + "\n"
-                if data['context']:
-                    dimensions_text += "Context:\n" + "\n".join(data['context'][:1]) + "\n"
-            
-            prompt = f"""Based on the deep research findings about {self.product_name}, analyze across 8 dimensions:
-
-{dimensions_text}
-
-Please analyze and return the following information in JSON format:
-{{
-    "q1_pitch": "One sentence description based on research or 'Info insufficient'",
-    "q2_broken_spot": "What problem it solves with sources or 'Info insufficient'",
-    "q3_urgency": "User urgency evidence with sources or 'Info insufficient'",
-    "q4_who_when_action": "Target users and use cases or 'Info insufficient'",
-    "q5_pain_level": "Pain severity addressed or 'Info insufficient'",
-    "q6_arena": {{
-        "arena_description": "Market description with evidence or 'Info insufficient'",
-        "success_metrics": "Key metrics with sources or 'Info insufficient'",
-        "competitive_scoring": "vs competitors or 'Info insufficient'",
-        "leading_logic": "Why they win or 'Info insufficient'"
-    }},
-    "q7_unique": "Unique aspects with sources or 'Info insufficient'",
-    "q8_implementation": "Technical approach based on findings or 'Info insufficient'"
-}}
-
-IMPORTANT:
-- Use information from the deep research findings
-- Include inline citations [Source: URL] for Q2, Q3, Q6, Q7
-- Be specific and evidence-based
-- If insufficient information, mark as 'Info insufficient'
-
-Return ONLY the JSON object, no additional text."""
-            
-            # 使用LLM提取信息
-            from gpt_researcher.utils.llm import create_chat_completion
-            response = await create_chat_completion(
-                messages=[
-                    {"role": "system", "content": "You are a product analyst conducting competitive intelligence analysis based on deep research."},
-                    {"role": "user", "content": prompt}
-                ],
-                model=self.cfg.smart_llm_model,
-                temperature=0.1,
-                max_tokens=3000,
-                llm_provider=self.cfg.smart_llm_provider,
-                llm_kwargs=self.cfg.llm_kwargs
-            )
-            
-            # 解析响应并更新八维信息
-            import json
-            try:
-                extracted_info = json.loads(response)
-                
-                # 更新各维度信息
-                for key in ['q1_pitch', 'q2_broken_spot', 'q3_urgency', 'q4_who_when_action', 
-                           'q5_pain_level', 'q7_unique', 'q8_implementation']:
-                    if extracted_info.get(key) and extracted_info.get(key) != 'Info insufficient':
-                        setattr(self.eight_dimensions, key, extracted_info[key])
-                
-                # 处理Q6的嵌套结构
-                if extracted_info.get('q6_arena'):
-                    q6_data = extracted_info['q6_arena']
-                    for sub_key in ['arena_description', 'success_metrics', 'competitive_scoring', 'leading_logic']:
-                        if q6_data.get(sub_key) and q6_data.get(sub_key) != 'Info insufficient':
-                            self.eight_dimensions.q6_arena[sub_key] = q6_data[sub_key]
-                
-                # 更新来源
-                self.eight_dimensions.sources = list(all_citations.values())[:20]
-                
-            except json.JSONDecodeError:
-                logger.warning("Failed to parse JSON from LLM response for eight dimensions")
-                
-        except Exception as e:
-            logger.error(f"Error extracting eight dimensions from deep research: {str(e)}")
-    
-    async def _extract_growth_intelligence_from_deep_research(self, context: List[str], learnings: List[str], citations: Dict[str, str]):
-        """从深度研究结果中提取增长情报"""
-        try:
-            # 组合带引用的学习要点
-            cited_learnings = []
-            for learning in learnings:
-                citation = citations.get(learning, '')
-                if citation:
-                    cited_learnings.append(f"{learning} [Source: {citation}]")
-                else:
-                    cited_learnings.append(learning)
-            
-            full_context = f"""
-Deep Research Findings on Growth & Marketing:
-
-Key Learnings:
-{chr(10).join(cited_learnings[:15])}
-
-Additional Context:
-{chr(10).join(context[:3]) if context else 'No additional context'}
-"""
-            
-            prompt = f"""Based on the deep research findings about {self.product_name}'s growth and marketing, extract intelligence:
-
-{full_context}
-
-Please extract and return the following information in JSON format:
-{{
-    "timeline_milestones": "Launch date, funding rounds, user milestones, key events with dates and sources. Or 'Info insufficient'",
-    "channels_tactics": "Customer acquisition channels, marketing strategies, community building, content/SEO approach with evidence and sources. Or 'Info insufficient'"
-}}
-
-IMPORTANT:
-- Include specific dates, numbers, and channels
-- Cite sources inline using [Source: URL] format
-- Focus on verifiable growth tactics and results
-- If information is not found, use 'Info insufficient'
-
-Return ONLY the JSON object, no additional text."""
-            
-            # 使用LLM提取信息
-            from gpt_researcher.utils.llm import create_chat_completion
-            response = await create_chat_completion(
-                messages=[
-                    {"role": "system", "content": "You are a growth marketing analyst extracting competitive intelligence from deep research."},
-                    {"role": "user", "content": prompt}
-                ],
-                model=self.cfg.smart_llm_model,
-                temperature=0.1,
-                max_tokens=2000,
-                llm_provider=self.cfg.smart_llm_provider,
-                llm_kwargs=self.cfg.llm_kwargs
-            )
-            
-            # 解析响应并更新信息
-            import json
-            try:
-                extracted_info = json.loads(response)
-                
-                if extracted_info.get('timeline_milestones') and extracted_info.get('timeline_milestones') != 'Info insufficient':
-                    self.growth_intelligence.timeline_milestones = extracted_info['timeline_milestones']
-                    
-                if extracted_info.get('channels_tactics') and extracted_info.get('channels_tactics') != 'Info insufficient':
-                    self.growth_intelligence.channels_tactics = extracted_info['channels_tactics']
-                
-                # 更新来源
-                self.growth_intelligence.sources = list(citations.values())[:10]
-                
-            except json.JSONDecodeError:
-                logger.warning("Failed to parse JSON from LLM response for growth intelligence")
-                
-        except Exception as e:
-            logger.error(f"Error extracting growth intelligence from deep research: {str(e)}")
