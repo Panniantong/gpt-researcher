@@ -255,35 +255,59 @@ class GenericLLMProvider:
     async def stream_response(self, messages, websocket=None, **kwargs):
         paragraph = ""
         response = ""
+        max_retries = 3
+        retry_count = 0
+        
+        while retry_count < max_retries:
+            try:
+                # Streaming the response using the chain astream method from langchain
+                async for chunk in self.llm.astream(messages, **kwargs):
+                    content = chunk.content
+                    if content is not None:
+                        response += content
+                        paragraph += content
+                        if "\n" in paragraph:
+                            await self._send_output(paragraph, websocket)
+                            paragraph = ""
 
-        try:
-            # Streaming the response using the chain astream method from langchain
-            async for chunk in self.llm.astream(messages, **kwargs):
-                content = chunk.content
-                if content is not None:
-                    response += content
-                    paragraph += content
-                    if "\n" in paragraph:
-                        await self._send_output(paragraph, websocket)
-                        paragraph = ""
-
-            if paragraph:
-                await self._send_output(paragraph, websocket)
-
-        except Exception as e:
-            error_msg = f"流式响应中断: {str(e)}"
-            print(f"Error in stream_response: {error_msg}")
-
-            # 如果已经有部分响应，返回已获得的内容
-            if response:
                 if paragraph:
-                    response += paragraph
-                return response
-            else:
-                # 如果没有任何响应，返回错误信息
-                error_response = f"# 响应生成失败\n\n错误信息: {error_msg}\n\n请重试或检查网络连接。"
-                await self._send_output(error_response, websocket)
-                return error_response
+                    await self._send_output(paragraph, websocket)
+                
+                # 如果成功获取响应，跳出重试循环
+                if response:
+                    break
+
+            except Exception as e:
+                retry_count += 1
+                error_msg = f"流式响应中断 (尝试 {retry_count}/{max_retries}): {str(e)}"
+                print(f"Error in stream_response: {error_msg}")
+                
+                if retry_count < max_retries:
+                    # 等待一段时间后重试
+                    await asyncio.sleep(2 ** retry_count)  # 指数退避
+                    print(f"正在重试... (第 {retry_count + 1} 次)")
+                    continue
+                
+                # 所有重试都失败了
+                # 如果已经有部分响应，返回已获得的内容
+                if response:
+                    if paragraph:
+                        response += paragraph
+                    return response
+                else:
+                    # 如果没有任何响应，尝试使用非流式方式获取
+                    try:
+                        print("尝试使用非流式方式获取响应...")
+                        output = await self.llm.ainvoke(messages, **kwargs)
+                        response = output.content
+                        if response:
+                            await self._send_output(response, websocket)
+                            return response
+                    except Exception as fallback_error:
+                        # 非流式方式也失败了，返回错误信息
+                        error_response = f"# 响应生成失败\n\n错误信息: {error_msg}\n备用方案错误: {str(fallback_error)}\n\n请重试或检查网络连接。"
+                        await self._send_output(error_response, websocket)
+                        return error_response
 
         return response
 
