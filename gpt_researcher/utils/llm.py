@@ -79,20 +79,58 @@ async def create_chat_completion(
 
     provider = get_llm(llm_provider, **provider_kwargs)
     response = ""
-    # create response
-    for _ in range(10):  # maximum of 10 attempts
-        response = await provider.get_chat_response(
-            messages, stream, websocket, **kwargs
-        )
+    last_error = None
 
-        if cost_callback:
-            llm_costs = estimate_llm_cost(str(messages), response)
-            cost_callback(llm_costs)
+    # create response with retry logic
+    for attempt in range(3):  # maximum of 3 attempts for better error handling
+        try:
+            response = await provider.get_chat_response(
+                messages, stream, websocket, **kwargs
+            )
 
-        return response
+            # 检查响应是否有效
+            if response and response.strip():
+                if cost_callback:
+                    llm_costs = estimate_llm_cost(str(messages), response)
+                    cost_callback(llm_costs)
+                return response
+            else:
+                print(f"Attempt {attempt + 1}: Received empty response, retrying...")
+                last_error = "Empty response received"
 
-    logging.error(f"Failed to get response from {llm_provider} API")
-    raise RuntimeError(f"Failed to get response from {llm_provider} API")
+        except Exception as e:
+            last_error = str(e)
+            print(f"Attempt {attempt + 1} failed: {last_error}")
+            if attempt < 2:  # Don't sleep on the last attempt
+                import asyncio
+                await asyncio.sleep(1 * (attempt + 1))  # Progressive delay
+
+    # 如果所有尝试都失败了，返回一个错误报告而不是抛出异常
+    error_response = f"""# API调用失败
+
+## 错误信息
+经过3次尝试后仍无法获取有效响应。
+
+最后一次错误: {last_error}
+
+## 可能的原因
+1. API服务暂时不可用
+2. 网络连接问题
+3. API配置错误
+4. 请求超时
+
+## 建议解决方案
+1. 检查网络连接
+2. 验证API密钥和配置
+3. 稍后重试
+4. 联系技术支持
+
+---
+*错误发生时间: {provider_kwargs.get('model', 'unknown')} via {llm_provider}*
+"""
+
+    logging.error(f"Failed to get response from {llm_provider} API after 3 attempts. Last error: {last_error}")
+    return error_response
 
 
 async def construct_subtopics(

@@ -28,6 +28,25 @@ async def write_text_to_md(text: str, filename: str = "") -> str:
     Returns:
         str: The file path of the generated Markdown file.
     """
+    # 检查输入内容是否为空或无效
+    if not text or text.strip() == "":
+        print("Input text seems empty, creating placeholder content...")
+        text = f"""# 报告生成失败
+
+## 错误信息
+报告内容为空，可能是由于以下原因：
+
+1. API连接中断
+2. 网络连接不稳定
+3. 服务暂时不可用
+
+## 建议
+请重试生成报告，或检查网络连接和API配置。
+
+---
+*生成时间: {filename}*
+"""
+
     file_path = f"outputs/{filename[:60]}.md"
     await write_to_file(file_path, text)
     return urllib.parse.quote(file_path)
@@ -46,6 +65,25 @@ async def write_md_to_pdf(text: str, filename: str = "") -> str:
 
     file_path = f"outputs/{filename[:60]}.pdf"
     fallback_path = f"outputs/{filename[:60]}.md"
+
+    # 检查输入内容是否为空或无效
+    if not text or text.strip() == "":
+        print("Input markdown seems empty, creating placeholder content...")
+        text = f"""# 报告生成失败
+
+## 错误信息
+报告内容为空，可能是由于以下原因：
+
+1. API连接中断
+2. 网络连接不稳定
+3. 服务暂时不可用
+
+## 建议
+请重试生成报告，或检查网络连接和API配置。
+
+---
+*生成时间: {filename}*
+"""
 
     # Check if PDF generation is enabled
     enable_pdf = os.getenv('ENABLE_PDF_GENERATION', 'true').lower() == 'true'

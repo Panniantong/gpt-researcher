@@ -256,18 +256,34 @@ class GenericLLMProvider:
         paragraph = ""
         response = ""
 
-        # Streaming the response using the chain astream method from langchain
-        async for chunk in self.llm.astream(messages, **kwargs):
-            content = chunk.content
-            if content is not None:
-                response += content
-                paragraph += content
-                if "\n" in paragraph:
-                    await self._send_output(paragraph, websocket)
-                    paragraph = ""
+        try:
+            # Streaming the response using the chain astream method from langchain
+            async for chunk in self.llm.astream(messages, **kwargs):
+                content = chunk.content
+                if content is not None:
+                    response += content
+                    paragraph += content
+                    if "\n" in paragraph:
+                        await self._send_output(paragraph, websocket)
+                        paragraph = ""
 
-        if paragraph:
-            await self._send_output(paragraph, websocket)
+            if paragraph:
+                await self._send_output(paragraph, websocket)
+
+        except Exception as e:
+            error_msg = f"流式响应中断: {str(e)}"
+            print(f"Error in stream_response: {error_msg}")
+
+            # 如果已经有部分响应，返回已获得的内容
+            if response:
+                if paragraph:
+                    response += paragraph
+                return response
+            else:
+                # 如果没有任何响应，返回错误信息
+                error_response = f"# 响应生成失败\n\n错误信息: {error_msg}\n\n请重试或检查网络连接。"
+                await self._send_output(error_response, websocket)
+                return error_response
 
         return response
 

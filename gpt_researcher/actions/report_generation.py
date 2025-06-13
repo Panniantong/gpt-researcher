@@ -287,5 +287,27 @@ async def generate_report(
             )
         except Exception as e:
             print(f"Error in generate_report: {e}")
+            # 返回一个基本的错误报告而不是空内容
+            report = f"""# 报告生成失败
+
+## 错误信息
+生成报告时遇到以下错误：{str(e)}
+
+## 可能的原因
+1. API连接中断或超时
+2. 网络连接不稳定
+3. API服务暂时不可用
+
+## 建议解决方案
+1. 检查网络连接
+2. 稍后重试
+3. 检查API配置是否正确
+
+## 研究查询
+原始查询：{query}
+
+---
+*此报告由于技术问题未能完全生成，请重试或联系技术支持。*
+"""
 
     return report
