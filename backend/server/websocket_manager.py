@@ -4,7 +4,7 @@ from typing import Dict, List
 
 from fastapi import WebSocket
 
-from backend.report_type import BasicReport, DetailedReport
+from backend.report_type import BasicReport, DetailedReport, CompetitiveIntelligenceReport, CompetitiveIntelligenceDetailedReport
 from backend.chat import ChatAgentWithMemory
 
 from gpt_researcher.utils.enum import ReportType, Tone
@@ -134,6 +134,40 @@ async def run_agent(task, report_type, report_source, source_urls, document_urls
 
     elif report_type == ReportType.DetailedReport.value:
         researcher = DetailedReport(
+            query=task,
+            query_domains=query_domains,
+            report_type=report_type,
+            report_source=report_source,
+            source_urls=source_urls,
+            document_urls=document_urls,
+            tone=tone,
+            config_path=config_path,
+            websocket=logs_handler,  # Use logs_handler instead of raw websocket
+            headers=headers,
+            mcp_configs=mcp_configs if mcp_enabled else None,
+            mcp_strategy=mcp_strategy if mcp_enabled else None,
+        )
+        report = await researcher.run()
+        
+    elif report_type == ReportType.CompetitiveIntelligence.value:
+        researcher = CompetitiveIntelligenceReport(
+            query=task,
+            query_domains=query_domains,
+            report_type=report_type,
+            report_source=report_source,
+            source_urls=source_urls,
+            document_urls=document_urls,
+            tone=tone,
+            config_path=config_path,
+            websocket=logs_handler,  # Use logs_handler instead of raw websocket
+            headers=headers,
+            mcp_configs=mcp_configs if mcp_enabled else None,
+            mcp_strategy=mcp_strategy if mcp_enabled else None,
+        )
+        report = await researcher.run()
+        
+    elif report_type == ReportType.CompetitiveIntelligenceDetailed.value:
+        researcher = CompetitiveIntelligenceDetailedReport(
             query=task,
             query_domains=query_domains,
             report_type=report_type,
