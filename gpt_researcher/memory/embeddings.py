@@ -52,12 +52,18 @@ class Memory:
                 # 如果有专门的embedding配置，直接使用官方API
                 if os.getenv("OPENAI_EMBEDDING_API_KEY"):
                     from langchain_openai import OpenAIEmbeddings
-                    _embeddings = OpenAIEmbeddings(
-                        model=model,
-                        openai_api_key=openai_api_key,
-                        openai_api_base=openai_base_url,
+                    embedding_params = {
+                        "model": model,
+                        "openai_api_key": openai_api_key,
                         **embdding_kwargs
-                    )
+                    }
+                    # 总是设置base_url以覆盖环境变量中的OPENAI_BASE_URL
+                    if openai_base_url:
+                        embedding_params["base_url"] = openai_base_url
+                    else:
+                        # 如果没有指定，使用官方API地址
+                        embedding_params["base_url"] = "https://api.openai.com/v1"
+                    _embeddings = OpenAIEmbeddings(**embedding_params)
                 else:
                     # 否则使用robust wrapper（适用于逆向API）
                     robust_embeddings = create_robust_embeddings("openai", model, **embdding_kwargs)
