@@ -66,7 +66,7 @@ In Azure OpenAI you have to chose which models you want to use and make deployme
 In January 2025 the models that are recommended to use are: 
 
 - gpt-4o-mini
-- gpt-4o
+- o3
 - o1-preview or o1-mini (You might need to request access to these models before you can deploy them).
 
 Please then specify the model names/deployment names in your `.env` file.
@@ -89,7 +89,7 @@ OPENAI_API_VERSION=2024-05-01-preview
 
 # each string is "azure_openai:deployment_name". ensure that your deployment have the same name as the model you use!
 FAST_LLM=azure_openai:gpt-4o-mini
-SMART_LLM=azure_openai:gpt-4o
+SMART_LLM=azure_openai:o3
 STRATEGIC_LLM=azure_openai:o1-preview
 
 # specify embedding

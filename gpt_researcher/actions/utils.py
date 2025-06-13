@@ -70,7 +70,7 @@ def calculate_cost(
         "gpt-3.5-turbo": 0.002,
         "gpt-4": 0.03,
         "gpt-4-32k": 0.06,
-        "gpt-4o": 0.00001,
+        "o3": 0.00001,
         "gpt-4o-mini": 0.000001,
         "o3-mini": 0.0000005,
         # Add more models and their costs as needed

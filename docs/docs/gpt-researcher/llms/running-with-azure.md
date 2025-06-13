@@ -16,7 +16,7 @@ EMBEDDING="azure_openai:text-embedding-ada-002" # change to the deployment of yo
 FAST_LLM="azure_openai:gpt-4o-mini" # change to the name of your deployment (not model-name)
 FAST_TOKEN_LIMIT=4000
 
-SMART_LLM="azure_openai:gpt-4o" # change to the name of your deployment (not model-name)
+SMART_LLM="azure_openai:o3" # change to the name of your deployment (not model-name)
 SMART_TOKEN_LIMIT=4000
 
 RETRIEVER="bing" # if you are using Bing as your search engine (which is likely if you use Azure)
