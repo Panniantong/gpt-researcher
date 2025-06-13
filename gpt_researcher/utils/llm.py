@@ -73,9 +73,23 @@ async def create_chat_completion(
         provider_kwargs['max_tokens'] = None
 
     if llm_provider == "openai":
-        base_url = os.environ.get("OPENAI_BASE_URL", None)
-        if base_url:
-            provider_kwargs['openai_api_base'] = base_url
+        # 检查是否是需要使用官方API的模型（如o3系列）
+        official_models = ['o3', 'o3-mini', 'o3-2025-04-16', 'o3-mini-2025-01-31']
+        use_official_api = any(model.startswith(official_model) for official_model in official_models)
+        
+        if use_official_api:
+            # 使用官方OpenAI API配置
+            api_key = os.environ.get("OPENAI_OFFICIAL_API_KEY", None)
+            base_url = os.environ.get("OPENAI_OFFICIAL_BASE_URL", "https://api.openai.com/v1")
+            if api_key:
+                provider_kwargs['openai_api_key'] = api_key
+            if base_url:
+                provider_kwargs['openai_api_base'] = base_url
+        else:
+            # 使用逆向API配置（默认行为）
+            base_url = os.environ.get("OPENAI_BASE_URL", None)
+            if base_url:
+                provider_kwargs['openai_api_base'] = base_url
 
     provider = get_llm(llm_provider, **provider_kwargs)
     response = ""
@@ -175,6 +189,26 @@ async def construct_subtopics(
         else:
             provider_kwargs['temperature'] = config.temperature
             provider_kwargs['max_tokens'] = config.smart_token_limit
+
+        # 为construct_subtopics函数也添加官方API支持
+        if config.smart_llm_provider == "openai":
+            # 检查是否是需要使用官方API的模型（如o3系列）
+            official_models = ['o3', 'o3-mini', 'o3-2025-04-16', 'o3-mini-2025-01-31']
+            use_official_api = any(config.smart_llm_model.startswith(official_model) for official_model in official_models)
+            
+            if use_official_api:
+                # 使用官方OpenAI API配置
+                api_key = os.environ.get("OPENAI_OFFICIAL_API_KEY", None)
+                base_url = os.environ.get("OPENAI_OFFICIAL_BASE_URL", "https://api.openai.com/v1")
+                if api_key:
+                    provider_kwargs['openai_api_key'] = api_key
+                if base_url:
+                    provider_kwargs['openai_api_base'] = base_url
+            else:
+                # 使用逆向API配置（默认行为）
+                base_url = os.environ.get("OPENAI_BASE_URL", None)
+                if base_url:
+                    provider_kwargs['openai_api_base'] = base_url
 
         provider = get_llm(config.smart_llm_provider, **provider_kwargs)
 

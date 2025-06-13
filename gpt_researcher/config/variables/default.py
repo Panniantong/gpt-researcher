@@ -5,7 +5,7 @@ DEFAULT_CONFIG: BaseConfig = {
     "EMBEDDING": "openai:text-embedding-3-small",
     "SIMILARITY_THRESHOLD": 0.42,
     "FAST_LLM": "openai:gpt-4o-mini",
-    "SMART_LLM": "openai:gpt-4.1",  # Has support for long responses (2k+ words).
+    "SMART_LLM": "openai:o3-mini",  # 使用官方OpenAI o3-mini模型生成报告 (支持长响应，2k+词汇)
     "STRATEGIC_LLM": "openai:o4-mini",  # Can be used with o1 or o3, please note it will make tasks slower.
     "FAST_TOKEN_LIMIT": 3000,
     "SMART_TOKEN_LIMIT": 6000,
