@@ -80,9 +80,9 @@ class Config:
                 case "custom":
                     self.embedding_model = os.getenv("OPENAI_EMBEDDING_MODEL", "custom")
                 case "openai":
-                    self.embedding_model = "text-embedding-3-large"
+                    self.embedding_model = "text-embedding-3-small"
                 case "azure_openai":
-                    self.embedding_model = "text-embedding-3-large"
+                    self.embedding_model = "text-embedding-3-small"
                 case "huggingface":
                     self.embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
                 case "gigachat":
@@ -212,7 +212,7 @@ class Config:
         except ValueError:
             raise ValueError(
                 "Set EMBEDDING = '<embedding_provider>:<embedding_model>' "
-                "Eg 'openai:text-embedding-3-large'"
+                "Eg 'openai:text-embedding-3-small'"
             )
 
     def validate_doc_path(self):

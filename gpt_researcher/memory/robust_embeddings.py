@@ -63,12 +63,12 @@ class RobustOpenAIEmbeddings(Embeddings):
         # Default dimensions for known models
         model_dimensions = {
             "text-embedding-3-small": 1536,
-            "text-embedding-3-large": 3072,
+            "text-embedding-3-small": 3072,
             "text-embedding-ada-002": 1536,
         }
         
         # Try to get model name from base embeddings
-        model_name = getattr(self.base_embeddings, "model", "text-embedding-3-large")
+        model_name = getattr(self.base_embeddings, "model", "text-embedding-3-small")
         return model_dimensions.get(model_name, 1536)  # Default to 1536
     
     def _embed_with_retry(self, texts: List[str], is_query: bool = False) -> List[List[float]]:

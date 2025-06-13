@@ -75,7 +75,7 @@ Please then specify the model names/deployment names in your `.env` file.
 
 - Your endpoint can have any valid name.
 - A model's deployment name *must be the same* as the model name.
-- You need to deploy an *Embedding Model*: To ensure optimal performance, GPT Researcher requires the 'text-embedding-3-large' model. Please deploy this specific model to your Azure Endpoint.
+- You need to deploy an *Embedding Model*: To ensure optimal performance, GPT Researcher requires the 'text-embedding-3-small' model. Please deploy this specific model to your Azure Endpoint.
 
 **Recommended**:
 
@@ -93,7 +93,7 @@ SMART_LLM=azure_openai:gpt-4o
 STRATEGIC_LLM=azure_openai:o1-preview
 
 # specify embedding
-EMBEDDING=azure_openai:text-embedding-3-large
+EMBEDDING=azure_openai:text-embedding-3-small
 ```
 
 Add `langchain-azure-dynamic-sessions` to [requirements.txt](https://github.com/assafelovic/gpt-researcher/blob/master/requirements.txt) for Docker Support or `pip install` it

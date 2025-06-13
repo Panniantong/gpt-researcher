@@ -6,7 +6,7 @@ from .robust_embeddings import create_robust_embeddings
 logger = logging.getLogger(__name__)
 
 OPENAI_EMBEDDING_MODEL = os.environ.get(
-    "OPENAI_EMBEDDING_MODEL", "text-embedding-3-large"
+    "OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"
 )
 
 _SUPPORTED_PROVIDERS = {
@@ -44,13 +44,28 @@ class Memory:
                     base_url=os.getenv("OPENAI_BASE_URL", "http://localhost:1234/v1")
                 )
             case "openai":
-                # Use robust embeddings wrapper to handle None responses
-                robust_embeddings = create_robust_embeddings("openai", model, **embdding_kwargs)
-                if robust_embeddings:
-                    _embeddings = robust_embeddings
-                else:
+                # Use official OpenAI API for embeddings
+                # 优先使用专门的embedding API配置，如果没有则使用默认配置
+                openai_api_key = os.getenv("OPENAI_EMBEDDING_API_KEY") or os.getenv("OPENAI_API_KEY")
+                openai_base_url = os.getenv("OPENAI_EMBEDDING_BASE_URL") or os.getenv("OPENAI_BASE_URL")
+                
+                # 如果有专门的embedding配置，直接使用官方API
+                if os.getenv("OPENAI_EMBEDDING_API_KEY"):
                     from langchain_openai import OpenAIEmbeddings
-                    _embeddings = OpenAIEmbeddings(model=model, **embdding_kwargs)
+                    _embeddings = OpenAIEmbeddings(
+                        model=model,
+                        openai_api_key=openai_api_key,
+                        openai_api_base=openai_base_url,
+                        **embdding_kwargs
+                    )
+                else:
+                    # 否则使用robust wrapper（适用于逆向API）
+                    robust_embeddings = create_robust_embeddings("openai", model, **embdding_kwargs)
+                    if robust_embeddings:
+                        _embeddings = robust_embeddings
+                    else:
+                        from langchain_openai import OpenAIEmbeddings
+                        _embeddings = OpenAIEmbeddings(model=model, **embdding_kwargs)
             case "azure_openai":
                 # Use robust embeddings wrapper to handle None responses
                 robust_embeddings = create_robust_embeddings("azure_openai", model, **embdding_kwargs)

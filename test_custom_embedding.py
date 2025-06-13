@@ -22,7 +22,7 @@ def test_custom_embedding():
         
         # 创建自定义embedding实例
         embeddings = create_custom_embeddings(
-            model="text-embedding-3-large",
+            model="text-embedding-3-small",
             api_key=os.getenv("OPENAI_API_KEY"),
             base_url=os.getenv("OPENAI_BASE_URL")
         )

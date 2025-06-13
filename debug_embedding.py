@@ -27,7 +27,7 @@ def test_embedding_api():
         
         # 创建embedding实例
         embeddings = OpenAIEmbeddings(
-            model="text-embedding-3-large",
+            model="text-embedding-3-small",
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             openai_api_base=os.getenv("OPENAI_BASE_URL")
         )
@@ -35,7 +35,7 @@ def test_embedding_api():
         print(f"✅ 创建embedding实例成功")
         print(f"   API Key: {os.getenv('OPENAI_API_KEY')[:20]}...")
         print(f"   Base URL: {os.getenv('OPENAI_BASE_URL')}")
-        print(f"   Model: text-embedding-3-large")
+        print(f"   Model: text-embedding-3-small")
         
         # 测试单个查询
         test_text = "This is a test sentence."
@@ -119,7 +119,7 @@ def test_robust_embedding():
         # 创建robust embedding
         robust_embeddings = create_robust_embeddings(
             "openai", 
-            "text-embedding-3-large",
+            "text-embedding-3-small",
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             openai_api_base=os.getenv("OPENAI_BASE_URL")
         )

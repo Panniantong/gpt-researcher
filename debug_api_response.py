@@ -34,21 +34,21 @@ def deep_debug_api():
             "name": "标准格式 - 单个文本",
             "data": {
                 "input": "test text",
-                "model": "text-embedding-3-large"
+                "model": "text-embedding-3-small"
             }
         },
         {
             "name": "标准格式 - 文本数组",
             "data": {
                 "input": ["test text 1", "test text 2"],
-                "model": "text-embedding-3-large"
+                "model": "text-embedding-3-small"
             }
         },
         {
             "name": "不同编码格式",
             "data": {
                 "input": "test text",
-                "model": "text-embedding-3-large",
+                "model": "text-embedding-3-small",
                 "encoding_format": "float"
             }
         },
@@ -56,7 +56,7 @@ def deep_debug_api():
             "name": "指定维度",
             "data": {
                 "input": "test text",
-                "model": "text-embedding-3-large",
+                "model": "text-embedding-3-small",
                 "dimensions": 3072
             }
         }
@@ -154,7 +154,7 @@ def deep_debug_api():
             response = requests.post(
                 test_url, 
                 headers=headers, 
-                json={"input": "test", "model": "text-embedding-3-large"},
+                json={"input": "test", "model": "text-embedding-3-small"},
                 timeout=10
             )
             print(f"   状态码: {response.status_code}")

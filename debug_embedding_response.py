@@ -34,7 +34,7 @@ def test_raw_embedding_api():
     
     data = {
         "input": "This is a test sentence.",
-        "model": "text-embedding-3-large"
+        "model": "text-embedding-3-small"
     }
     
     try:
@@ -117,7 +117,7 @@ def test_multiple_inputs():
     
     data = {
         "input": ["First text", "Second text"],
-        "model": "text-embedding-3-large"
+        "model": "text-embedding-3-small"
     }
     
     try:

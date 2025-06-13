@@ -24,8 +24,8 @@ async def main():
             cfg.embedding_provider = "openai"
             
         if not hasattr(cfg, 'embedding_model') or not cfg.embedding_model:
-            print("Setting default embedding model: text-embedding-3-large")
-            cfg.embedding_model = "text-embedding-3-large"
+            print("Setting default embedding model: text-embedding-3-small")
+            cfg.embedding_model = "text-embedding-3-small"
         
         # Create a Memory instance using the configuration
         # Note: We're not passing embedding_kwargs since it's not properly initialized
