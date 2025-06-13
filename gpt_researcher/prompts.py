@@ -27,6 +27,15 @@ class PromptFamily:
     All derived classes must retain the same set of method names, but may
     override individual methods.
     """
+    # 提示词生成器：这些遵循标准格式，与ReportType枚举相关联。
+    # 应通过get_prompt_by_report_type访问它们
+    
+    # 提示词方法：这些是特定情况的方法，没有标准签名，
+    # 在代理代码中直接访问
+    
+    # 所有派生类必须保留相同的方法名称集，但可以
+    # 覆盖单个方法
+
 
     def __init__(self, config: Config):
         """Initialize with a config instance. This may be used by derived
@@ -80,7 +89,7 @@ Return a JSON object with this exact format:
 }}
 
 Select exactly {max_tools} tools, ranked by relevance to the research query.
-"""
+""" # MCP工具选择提示：帮助研究助手为研究查询选择最相关的工具，要求分析工具并选择指定数量的最相关工具，返回JSON格式的选择结果
 
     @staticmethod
     def generate_mcp_research_prompt(query: str, selected_tools: List) -> str:
@@ -115,7 +124,7 @@ INSTRUCTIONS:
 
 AVAILABLE TOOLS: {tool_names}
 
-Please conduct thorough research and provide your findings. Use the tools strategically to gather the most relevant and comprehensive information."""
+Please conduct thorough research and provide your findings. Use the tools strategically to gather the most relevant and comprehensive information.""" # MCP研究执行提示：指导研究助手使用选定的专业工具进行研究，要求全面准确地收集信息并提供研究结果
 
     @staticmethod
     def generate_search_queries_prompt(
@@ -149,7 +158,7 @@ You are a seasoned research assistant tasked with generating search queries to f
 Context: {context}
 
 Use this context to inform and refine your search queries. The context provides real-time web information that can help you generate more specific and relevant queries. Consider any current events, recent developments, or specific details mentioned in the context that could enhance the search queries.
-""" if context else ""
+""" if context else "" # 上下文提示：为经验丰富的研究助手提供任务背景，利用实时网络信息生成更具体和相关的搜索查询
 
         dynamic_example = ", ".join([f'"query {i+1}"' for i in range(max_iterations)])
 
@@ -163,7 +172,7 @@ You must respond with a list of strings in the following format: [{dynamic_examp
 Each query should be specific, focused, and in proper English.
 Avoid generic terms, use specific product names, technologies, or concepts.
 The response should contain ONLY the list.
-"""
+""" # 搜索查询生成提示：为给定任务生成指定数量的Google搜索查询，要求查询必须是英文，具体且专注，避免通用术语
 
     @staticmethod
     def generate_report_prompt(
@@ -220,7 +229,7 @@ Please follow all of the following guidelines in your report:
 You MUST write the report in the following language: {language}.
 Please do your best, this is very important to my career.
 Assume that the current date is {date.today()}.
-"""
+""" # 报告生成提示：基于提供的信息生成详细报告，要求结构良好、信息丰富、深入全面，包含事实和数字，使用markdown语法和指定格式
 
     @staticmethod
     def curate_sources(query, sources, max_results=10):
@@ -254,7 +263,7 @@ SOURCES LIST TO EVALUATE:
 
 You MUST return your response in the EXACT sources JSON list format as the original sources.
 The response MUST not contain any markdown format or additional text (like ```json), just the JSON list!
-"""
+""" # 信息源筛选提示：评估和筛选抓取的内容，优先保留相关和高质量信息，特别是包含统计数据的来源，用于创建研究报告
 
     @staticmethod
     def generate_resource_report_prompt(
@@ -294,13 +303,13 @@ The response MUST not contain any markdown format or additional text (like ```js
             "You MUST include all relevant source urls."
             "Every url should be hyperlinked: [url website](url)"
             f"{reference_prompt}"
-        )
+        ) # 资源报告生成提示：基于提供信息生成参考书目推荐报告，详细分析每个推荐资源，解释其对研究问题的贡献
 
     @staticmethod
     def generate_custom_report_prompt(
         query_prompt, context, report_source: str, report_format="apa", tone=None, total_words=1000, language: str = "english"
     ):
-        return f'"{context}"\n\n{query_prompt}'
+        return f'"{context}"\n\n{query_prompt}' # 自定义报告生成提示：将上下文和查询提示组合生成自定义报告
 
     @staticmethod
     def generate_outline_report_prompt(
@@ -319,7 +328,7 @@ The response MUST not contain any markdown format or additional text (like ```js
             f" The research report should be detailed, informative, in-depth, and a minimum of {total_words} words."
             " Use appropriate Markdown syntax to format the outline and ensure readability."
             " Consider using markdown tables and other formatting features where they would enhance the presentation of information."
-        )
+        ) # 大纲报告生成提示：基于提供信息生成研究报告大纲，提供结构良好的框架，包括主要章节、子章节和要点
 
     @staticmethod
     def generate_deep_research_prompt(
@@ -391,7 +400,7 @@ Additional requirements:
 
 Please write a thorough, well-researched report that synthesizes all the gathered information into a cohesive whole.
 Assume the current date is {datetime.now(timezone.utc).strftime('%B %d, %Y')}.
-"""
+""" # 深度研究报告生成提示：基于分层研究信息生成综合研究报告，要求综合多层次研究深度的信息，整合各研究分支的发现
 
     @staticmethod
     def auto_agent_instructions():
@@ -419,7 +428,7 @@ response:
     "server":  "🌍 Travel Agent",
     "agent_role_prompt": "You are a world-travelled AI tour guide assistant. Your main purpose is to draft engaging, insightful, unbiased, and well-structured travel reports on given locations, including history, attractions, and cultural insights."
 }
-"""
+""" # 自动代理指令提示：根据主题领域确定特定的研究代理类型和角色，每个代理按专业领域分类并配有相应表情符号
 
     @staticmethod
     def generate_summary_prompt(query, data):
@@ -433,7 +442,7 @@ response:
             f'{data}\n Using the above text, summarize it based on the following task or query: "{query}".\n If the '
             f"query cannot be answered using the text, YOU MUST summarize the text in short.\n Include all factual "
             f"information such as numbers, stats, quotes, etc if available. "
-        )
+        ) # 摘要生成提示：基于给定任务或查询对文本进行摘要，如果无法回答查询则简短摘要，包含所有事实信息如数字、统计数据、引用等
 
     @staticmethod
     def pretty_print_docs(docs: list[Document], top_n: int | None = None) -> str:
@@ -447,7 +456,7 @@ response:
     @staticmethod
     def join_local_web_documents(docs_context: str, web_context: str) -> str:
         """Joins local web documents with context scraped from the internet"""
-        return f"Context from local documents: {docs_context}\n\nContext from web sources: {web_context}"
+        return f"Context from local documents: {docs_context}\n\nContext from web sources: {web_context}" # 本地和网络文档合并：将本地文档上下文与网络抓取的上下文合并
 
     ################################################################################################
 
@@ -474,7 +483,7 @@ and research data:
 - Every subtopic MUST be relevant to the main topic and provided research data ONLY!
 
 {format_instructions}
-"""
+""" # 子主题生成提示：基于主要主题和研究数据构建子主题列表，作为报告文档的标题，要求相关且有意义的顺序
 
     @staticmethod
     def generate_subtopic_report_prompt(
@@ -551,7 +560,7 @@ Assume the current date is {datetime.now(timezone.utc).strftime('%B %d, %Y')} if
 - Use an {tone.value} tone throughout the report.
 
 Do NOT add a conclusion section.
-"""
+""" # 子主题报告生成提示：为特定子主题构建详细报告，确保内容独特性，不与现有报告重叠，使用markdown语法和指定格式
 
     @staticmethod
     def generate_draft_titles_prompt(
@@ -585,7 +594,7 @@ Provide the draft headers in a list format using markdown syntax, for example:
 - The focus MUST be on the main topic! You MUST Leave out any information un-related to it!
 - Must NOT have any introduction, conclusion, summary or reference section.
 - Focus solely on creating headers, not content.
-"""
+""" # 草稿标题生成提示：为子主题报告创建草稿章节标题，要求简洁且相关，详细程度足以覆盖子主题的主要方面
 
     @staticmethod
     def generate_report_introduction(question: str, research_summary: str = "", language: str = "english", report_format: str = "apa") -> str:
@@ -597,7 +606,7 @@ Using the above latest information, Prepare a detailed report introduction on th
 - You must use in-text citation references in {report_format.upper()} format and make it with markdown hyperlink placed at the end of the sentence or paragraph that references them like this: ([in-text citation](url)).
 Assume that the current date is {datetime.now(timezone.utc).strftime('%B %d, %Y')} if required.
 - The output must be in {language} language.
-"""
+""" # 报告引言生成提示：基于最新信息为主题准备详细的报告引言，要求简洁、结构良好、信息丰富，使用markdown语法
 
 
     @staticmethod
@@ -632,7 +641,7 @@ Assume that the current date is {datetime.now(timezone.utc).strftime('%B %d, %Y'
     IMPORTANT: The entire conclusion MUST be written in {language} language.
 
     Write the conclusion:
-    """
+    """ # 报告结论生成提示：基于研究报告和研究任务编写简洁结论，总结主要发现及其影响，要求2-3段长度
 
         return prompt
 
