@@ -54,6 +54,14 @@ class ResearchRequest(BaseModel):
     generate_files: bool = True  # 新增：是否生成文件（DOCX/PDF），默认为True保持向后兼容
 
 
+class SimpleResearchRequest(BaseModel):
+    """Simplified research request for Render deployment"""
+    task: str
+    report_type: str = "research_report"
+    report_source: str = "web"
+    tone: str = "Objective"
+
+
 class ConfigRequest(BaseModel):
     ANTHROPIC_API_KEY: str
     TAVILY_API_KEY: str
@@ -208,6 +216,47 @@ async def list_files():
 @app.post("/api/multi_agents")
 async def run_multi_agents():
     return await execute_multi_agents(manager)
+
+
+@app.post("/api/research")
+async def simple_research(research_request: SimpleResearchRequest):
+    """Simple research endpoint for Render deployment - returns only the report string"""
+    try:
+        # Run the research
+        report_information = await run_agent(
+            task=research_request.task,
+            report_type=research_request.report_type,
+            report_source=research_request.report_source,
+            source_urls=[],
+            document_urls=[],
+            tone=Tone[research_request.tone],
+            websocket=None,
+            stream_output=None,
+            headers=None,
+            query_domains=[],
+            config_path="",
+            return_researcher=True
+        )
+        
+        if research_request.report_type != "multi_agents":
+            report, researcher = report_information
+            return {
+                "status": "success",
+                "report": report,
+                "research_costs": researcher.get_costs() if hasattr(researcher, 'get_costs') else None
+            }
+        else:
+            return {
+                "status": "success",
+                "report": report_information
+            }
+            
+    except Exception as e:
+        logger.error(f"Error in simple_research: {str(e)}")
+        return {
+            "status": "error",
+            "message": str(e)
+        }
 
 
 @app.post("/upload/")
