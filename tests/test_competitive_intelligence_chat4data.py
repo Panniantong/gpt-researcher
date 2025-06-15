@@ -46,41 +46,41 @@ async def test_gpt_researcher_summary():
     print("⚠️  注意：执行以下代码会调用LLM API，会产生费用")
     
     # 取消下面的注释来实际执行研究
-    # await researcher.conduct_research()
-    # report = await researcher.write_report()
+    await researcher.conduct_research()
+    report = await researcher.write_report()
     
-    # 模拟报告内容用于演示
-    mock_report = """
-# chat4data 竞品分析报告
+#     # 模拟报告内容用于演示
+#     mock_report = """
+# # chat4data 竞品分析报告
 
-## Part 1: 核心档案 (Executive Profile)
+# ## Part 1: 核心档案 (Executive Profile)
 
-### 【创始人画像】
-[需深度调研] 创始人背景信息...
+# ### 【创始人画像】
+# [需深度调研] 创始人背景信息...
 
-### 【产品定位】
-chat4data 是一个数据分析对话平台...
+# ### 【产品定位】
+# chat4data 是一个数据分析对话平台...
 
-## Part 2: 创始人深度分析
-[创始人相关深度分析内容...]
+# ## Part 2: 创始人深度分析
+# [创始人相关深度分析内容...]
 
-## Part 3: 产品与市场分析
-[产品功能、市场定位等分析...]
-"""
+# ## Part 3: 产品与市场分析
+# [产品功能、市场定位等分析...]
+# """
     
     # 保存报告（实际使用时替换为真实报告）
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     report_path = f"tests/chat4data_summary_report_{timestamp}.md"
     
     # 实际使用时的代码
-    # with open(report_path, "w", encoding="utf-8") as f:
-    #     f.write(report)
-    # print(f"✅ 报告已保存至: {report_path}")
+    with open(report_path, "w", encoding="utf-8") as f:
+        f.write(report)
+    print(f"✅ 报告已保存至: {report_path}")
     
-    print("📝 报告示例预览:")
-    print("-" * 40)
-    print(mock_report[:300] + "...")
-    print("-" * 40)
+    # print("📝 报告示例预览:")
+    # print("-" * 40)
+    # print(mock_report[:300] + "...")
+    # print("-" * 40)
     
     return researcher
 
