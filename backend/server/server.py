@@ -51,6 +51,7 @@ class ResearchRequest(BaseModel):
     repo_name: str
     branch_name: str
     generate_in_background: bool = True
+    generate_files: bool = True  # 新增：是否生成文件（DOCX/PDF），默认为True保持向后兼容
 
 
 class ConfigRequest(BaseModel):
@@ -86,7 +87,7 @@ manager = WebSocketManager()
 # Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"],  # 允许所有来源，方便Postman测试
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -113,6 +114,12 @@ async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request, "report": None})
 
 
+@app.get("/health")
+async def health_check():
+    """健康检查端点，用于Render监控"""
+    return {"status": "healthy", "message": "GPT Researcher API is running"}
+
+
 @app.get("/report/{research_id}")
 async def read_report(request: Request, research_id: str):
     docx_path = os.path.join('outputs', f"{research_id}.docx")
@@ -137,8 +144,16 @@ async def write_report(research_request: ResearchRequest, research_id: str = Non
         return_researcher=True
     )
 
-    docx_path = await write_md_to_word(report_information[0], research_id)
-    pdf_path = await write_md_to_pdf(report_information[0], research_id)
+    # 检查是否需要生成文件（通过新的参数控制）
+    generate_files = research_request.generate_files
+
+    docx_path = None
+    pdf_path = None
+
+    if generate_files:
+        docx_path = await write_md_to_word(report_information[0], research_id)
+        pdf_path = await write_md_to_pdf(report_information[0], research_id)
+
     if research_request.report_type != "multi_agents":
         report, researcher = report_information
         response = {
@@ -151,11 +166,20 @@ async def write_report(research_request: ResearchRequest, research_id: str = Non
                 # "research_sources": researcher.get_research_sources(),  # Raw content of sources may be very large
             },
             "report": report,
-            "docx_path": docx_path,
-            "pdf_path": pdf_path
         }
+
+        # 只有在生成文件时才添加文件路径
+        if generate_files:
+            response["docx_path"] = docx_path
+            response["pdf_path"] = pdf_path
     else:
-        response = { "research_id": research_id, "report": "", "docx_path": docx_path, "pdf_path": pdf_path }
+        response = {
+            "research_id": research_id,
+            "report": ""
+        }
+        if generate_files:
+            response["docx_path"] = docx_path
+            response["pdf_path"] = pdf_path
 
     return response
 

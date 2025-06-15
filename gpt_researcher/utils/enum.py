@@ -11,6 +11,7 @@ class ReportType(Enum):
     DeepResearch = "deep"
     CompetitiveIntelligence = "competitive_intelligence"
     CompetitiveIntelligenceDetailed = "competitive_intelligence_detailed"
+    CompetitiveIntelligenceVisual = "competitive_intelligence_visual"
 
 
 class ReportSource(Enum):

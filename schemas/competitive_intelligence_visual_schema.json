@@ -1,0 +1,306 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Competitive Intelligence Visual Report Schema",
+  "type": "object",
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "product_name": {"type": "string"},
+        "report_date": {"type": "string", "format": "date"},
+        "version": {"type": "string", "default": "2.0"},
+        "report_type": {"type": "string", "default": "visual"}
+      },
+      "required": ["product_name", "report_date"]
+    },
+    "layer_1_hero": {
+      "type": "object",
+      "description": "第1层：0-5秒快速浏览",
+      "properties": {
+        "hero_snapshot": {
+          "type": "object",
+          "properties": {
+            "tagline": {"type": "string", "description": "一句话定位"},
+            "key_metrics": {
+              "type": "object",
+              "properties": {
+                "arr": {"type": "string", "description": "年度经常性收入"},
+                "clients": {"type": "integer", "description": "客户数量"},
+                "growth_90d": {"type": "string", "description": "近90天增长率"},
+                "replication_difficulty": {
+                  "type": "string",
+                  "enum": ["容易", "中等", "困难", "极难"]
+                }
+              }
+            }
+          },
+          "required": ["tagline", "key_metrics"]
+        },
+        "value_curve": {
+          "type": "object",
+          "properties": {
+            "problems": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "核心痛点列表"
+            },
+            "solutions": {
+              "type": "array", 
+              "items": {"type": "string"},
+              "description": "解决方案列表"
+            }
+          },
+          "required": ["problems", "solutions"]
+        }
+      },
+      "required": ["hero_snapshot", "value_curve"]
+    },
+    "layer_2_visual": {
+      "type": "object",
+      "description": "第2层：5-30秒可视化图表",
+      "properties": {
+        "competitive_radar": {
+          "type": "object",
+          "properties": {
+            "dimensions": {
+              "type": "array",
+              "items": {"type": "string"},
+              "default": ["定制化", "自动化深度", "开源透明", "生态", "价格"]
+            },
+            "scores": {
+              "type": "array",
+              "items": {"type": "number", "minimum": 0, "maximum": 5}
+            },
+            "competitors": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {"type": "string"},
+                  "scores": {
+                    "type": "array",
+                    "items": {"type": "number", "minimum": 0, "maximum": 5}
+                  }
+                }
+              }
+            }
+          },
+          "required": ["dimensions", "scores"]
+        },
+        "growth_timeline": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": {"type": "string", "format": "date"},
+              "milestone": {"type": "string"},
+              "type": {
+                "type": "string",
+                "enum": ["funding", "product", "growth", "partnership", "other"]
+              },
+              "description": {"type": "string"},
+              "evidence_url": {"type": "string", "format": "uri"}
+            },
+            "required": ["date", "milestone", "type"]
+          }
+        },
+        "metrics_chart": {
+          "type": "object",
+          "properties": {
+            "revenue_data": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "period": {"type": "string"},
+                  "value": {"type": "number"},
+                  "growth_rate": {"type": "number"}
+                }
+              }
+            },
+            "user_data": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "period": {"type": "string"},
+                  "value": {"type": "number"},
+                  "growth_rate": {"type": "number"}
+                }
+              }
+            }
+          }
+        }
+      },
+      "required": ["competitive_radar", "growth_timeline"]
+    },
+    "layer_3_cards": {
+      "type": "object",
+      "description": "第3层：30秒-3分钟卡片式布局",
+      "properties": {
+        "insight_cards": {
+          "type": "object",
+          "properties": {
+            "pain_points": {
+              "type": "object",
+              "properties": {
+                "title": {"type": "string", "default": "核心痛点"},
+                "icon": {"type": "string", "default": "AlertTriangle"},
+                "content": {"type": "string", "maxLength": 120},
+                "evidence_url": {"type": "string", "format": "uri"}
+              }
+            },
+            "target_users": {
+              "type": "object",
+              "properties": {
+                "title": {"type": "string", "default": "目标用户"},
+                "icon": {"type": "string", "default": "Users"},
+                "content": {"type": "string", "maxLength": 120},
+                "evidence_url": {"type": "string", "format": "uri"}
+              }
+            },
+            "core_scenarios": {
+              "type": "object",
+              "properties": {
+                "title": {"type": "string", "default": "核心场景"},
+                "icon": {"type": "string", "default": "Workflow"},
+                "content": {"type": "string", "maxLength": 120},
+                "evidence_url": {"type": "string", "format": "uri"}
+              }
+            },
+            "market_status": {
+              "type": "object",
+              "properties": {
+                "title": {"type": "string", "default": "赛道现状"},
+                "icon": {"type": "string", "default": "TrendingUp"},
+                "content": {"type": "string", "maxLength": 120},
+                "evidence_url": {"type": "string", "format": "uri"}
+              }
+            },
+            "tech_stack": {
+              "type": "object",
+              "properties": {
+                "title": {"type": "string", "default": "技术栈"},
+                "icon": {"type": "string", "default": "Code"},
+                "content": {"type": "string", "maxLength": 120},
+                "evidence_url": {"type": "string", "format": "uri"}
+              }
+            },
+            "business_model": {
+              "type": "object",
+              "properties": {
+                "title": {"type": "string", "default": "商业模式"},
+                "icon": {"type": "string", "default": "DollarSign"},
+                "content": {"type": "string", "maxLength": 120},
+                "evidence_url": {"type": "string", "format": "uri"}
+              }
+            }
+          }
+        },
+        "founder_moat_canvas": {
+          "type": "object",
+          "properties": {
+            "founder_info": {
+              "type": "object",
+              "properties": {
+                "name": {"type": "string"},
+                "avatar_url": {"type": "string", "format": "uri"},
+                "title": {"type": "string"}
+              }
+            },
+            "quadrants": {
+              "type": "object",
+              "properties": {
+                "industry_knowhow": {"type": "string", "maxLength": 80},
+                "capital_backing": {"type": "string", "maxLength": 80},
+                "channel_resources": {"type": "string", "maxLength": 80},
+                "community_influence": {"type": "string", "maxLength": 80}
+              }
+            }
+          }
+        }
+      },
+      "required": ["insight_cards"]
+    },
+    "layer_4_detailed": {
+      "type": "object",
+      "description": "第4层：3分钟+专家详细数据",
+      "properties": {
+        "detailed_research": {
+          "type": "object",
+          "properties": {
+            "full_analysis": {"type": "string"},
+            "methodology": {"type": "string"},
+            "research_sources": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "url": {"type": "string", "format": "uri"},
+                  "title": {"type": "string"},
+                  "source_type": {"type": "string"},
+                  "reliability": {"type": "number", "minimum": 1, "maximum": 5}
+                }
+              }
+            },
+            "data_gaps": {
+              "type": "array",
+              "items": {"type": "string"}
+            }
+          }
+        },
+        "competitive_analysis": {
+          "type": "object",
+          "properties": {
+            "market_position": {"type": "string"},
+            "competitive_advantages": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "risks": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "opportunities": {
+              "type": "array",
+              "items": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "ui_config": {
+      "type": "object",
+      "description": "UI配置信息",
+      "properties": {
+        "theme": {
+          "type": "object",
+          "properties": {
+            "primary_color": {"type": "string", "default": "#0EA5E9"},
+            "accent_color": {"type": "string", "default": "#06B6D4"},
+            "background": {"type": "string", "default": "gradient"},
+            "font_family": {"type": "string", "default": "Inter, PingFang SC"}
+          }
+        },
+        "layout": {
+          "type": "object",
+          "properties": {
+            "grid_columns": {"type": "integer", "default": 12},
+            "max_width": {"type": "string", "default": "1200px"},
+            "margin": {"type": "string", "default": "72px"},
+            "gutter": {"type": "string", "default": "24px"}
+          }
+        },
+        "animations": {
+          "type": "object",
+          "properties": {
+            "scroll_reveal": {"type": "boolean", "default": true},
+            "radar_draw_duration": {"type": "string", "default": "0.6s"},
+            "fade_in_duration": {"type": "string", "default": "40ms"}
+          }
+        }
+      }
+    }
+  },
+  "required": ["metadata", "layer_1_hero", "layer_2_visual", "layer_3_cards"]
+}

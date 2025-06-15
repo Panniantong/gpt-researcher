@@ -933,6 +933,221 @@ Assume that the current date is {datetime.now(timezone.utc).strftime('%B %d, %Y'
 """
 
     @staticmethod
+    def generate_competitive_intelligence_visual_prompt(
+        question: str,
+        context,
+        report_source: str,
+        report_format="json",
+        tone=None,
+        total_words=2000,
+        language="chinese",
+    ):
+        """Generates the competitive intelligence visual report prompt for structured data output.
+        
+        Args:
+            question (str): The product name or URL to research
+            context (str): The research context containing information about the product
+            report_source (str): Source of the research (web, etc.)
+            report_format (str): Report formatting style (should be 'json' for visual reports)
+            tone: The tone to use in writing
+            total_words (int): Minimum word count
+            language (str): Output language
+            
+        Returns:
+            str: The competitive intelligence visual report prompt for JSON output
+        """
+        reference_prompt = ""
+        if report_source == ReportSource.Web.value:
+            reference_prompt = """
+在detailed_research.research_sources中列出所有使用的信息源，包含URL、标题、来源类型和可靠性评分。
+"""
+        
+        return f"""
+# 身份
+你是一位顶尖的「产品情报研究员」，专门生成结构化的可视化报告数据。
+
+# 核心任务
+根据用户提供的产品：{question}，生成一份完整的JSON格式结构化数据，用于生成现代化的可视化竞品调研报告。
+
+# 输出要求
+你必须输出一个完整的JSON对象，严格按照以下结构，不要输出任何其他文字：
+
+{{
+  "metadata": {{
+    "product_name": "{question}",
+    "report_date": "{datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
+    "version": "2.0",
+    "report_type": "visual"
+  }},
+  "layer_1_hero": {{
+    "hero_snapshot": {{
+      "tagline": "一句话清晰定位这个产品的核心价值主张",
+      "key_metrics": {{
+        "arr": "年度经常性收入（如：$1.2M，无数据则填'未知'）",
+        "clients": "客户数量（整数，无数据则填0）",
+        "growth_90d": "近90天增长率（如：+18%，无数据则填'未知'）",
+        "replication_difficulty": "复刻难度：容易/中等/困难/极难"
+      }}
+    }},
+    "value_curve": {{
+      "problems": ["用户面临的核心痛点1", "痛点2", "痛点3"],
+      "solutions": ["产品提供的解决方案1", "解决方案2", "解决方案3"]
+    }}
+  }},
+  "layer_2_visual": {{
+    "competitive_radar": {{
+      "dimensions": ["定制化", "自动化深度", "开源透明", "生态", "价格"],
+      "scores": [该产品在5个维度的评分，1-5分，数组格式如[4.2, 3.8, 4.5, 3.2, 4.0]],
+      "competitors": [
+        {{
+          "name": "主要竞品1",
+          "scores": [竞品1在5个维度的评分]
+        }},
+        {{
+          "name": "主要竞品2", 
+          "scores": [竞品2在5个维度的评分]
+        }}
+      ]
+    }},
+    "growth_timeline": [
+      {{
+        "date": "2024-01-01",
+        "milestone": "重要里程碑描述",
+        "type": "funding/product/growth/partnership/other",
+        "description": "详细描述",
+        "evidence_url": "证据链接URL"
+      }}
+    ],
+    "metrics_chart": {{
+      "revenue_data": [
+        {{
+          "period": "2024-Q1",
+          "value": 数值,
+          "growth_rate": 增长率
+        }}
+      ],
+      "user_data": [
+        {{
+          "period": "2024-Q1", 
+          "value": 用户数,
+          "growth_rate": 增长率
+        }}
+      ]
+    }}
+  }},
+  "layer_3_cards": {{
+    "insight_cards": {{
+      "pain_points": {{
+        "title": "核心痛点",
+        "icon": "AlertTriangle",
+        "content": "不超过120字的痛点分析",
+        "evidence_url": "相关证据链接"
+      }},
+      "target_users": {{
+        "title": "目标用户",
+        "icon": "Users", 
+        "content": "不超过120字的用户画像",
+        "evidence_url": "相关证据链接"
+      }},
+      "core_scenarios": {{
+        "title": "核心场景",
+        "icon": "Workflow",
+        "content": "不超过120字的使用场景描述",
+        "evidence_url": "相关证据链接"
+      }},
+      "market_status": {{
+        "title": "赛道现状",
+        "icon": "TrendingUp",
+        "content": "不超过120字的市场分析", 
+        "evidence_url": "相关证据链接"
+      }},
+      "tech_stack": {{
+        "title": "技术栈",
+        "icon": "Code",
+        "content": "不超过120字的技术实现分析",
+        "evidence_url": "相关证据链接"
+      }},
+      "business_model": {{
+        "title": "商业模式",
+        "icon": "DollarSign",
+        "content": "不超过120字的商业模式分析",
+        "evidence_url": "相关证据链接"
+      }}
+    }},
+    "founder_moat_canvas": {{
+      "founder_info": {{
+        "name": "创始人姓名",
+        "avatar_url": "头像URL",
+        "title": "职位/背景"
+      }},
+      "quadrants": {{
+        "industry_knowhow": "行业专业知识优势，不超过80字",
+        "capital_backing": "资本支持情况，不超过80字", 
+        "channel_resources": "渠道资源优势，不超过80字",
+        "community_influence": "社区影响力，不超过80字"
+      }}
+    }}
+  }},
+  "layer_4_detailed": {{
+    "detailed_research": {{
+      "full_analysis": "完整的深度分析文本",
+      "methodology": "调研方法说明",
+      "research_sources": [
+        {{
+          "url": "信息源URL",
+          "title": "信息源标题",
+          "source_type": "官网/社交媒体/新闻/博客/其他",
+          "reliability": "可靠性评分1-5"
+        }}
+      ],
+      "data_gaps": ["缺失的关键信息1", "缺失的关键信息2"]
+    }},
+    "competitive_analysis": {{
+      "market_position": "市场定位分析",
+      "competitive_advantages": ["竞争优势1", "竞争优势2"],
+      "risks": ["风险点1", "风险点2"],
+      "opportunities": ["机会点1", "机会点2"]
+    }}
+  }},
+  "ui_config": {{
+    "theme": {{
+      "primary_color": "#0EA5E9",
+      "accent_color": "#06B6D4",
+      "background": "gradient",
+      "font_family": "Inter, PingFang SC"
+    }},
+    "layout": {{
+      "grid_columns": 12,
+      "max_width": "1200px",
+      "margin": "72px",
+      "gutter": "24px"
+    }},
+    "animations": {{
+      "scroll_reveal": true,
+      "radar_draw_duration": "0.6s", 
+      "fade_in_duration": "40ms"
+    }}
+  }}
+}}
+
+# 数据要求
+基于以下调研信息：
+"{context}"
+
+# 关键指导原则
+1. 所有评分必须基于证据，不能主观臆断
+2. 如果某项信息确实无法获得，在对应字段填入"未知"或"信息不足"
+3. 雷达图评分要相对客观，基于功能对比和市场表现
+4. 时间轴必须包含可验证的里程碑事件
+5. 卡片内容要精炼有力，突出核心洞察
+6. 创始人信息如无法获得，各项填"未知"
+
+{reference_prompt}
+
+输出完整JSON对象，不要包含任何解释性文字：
+"""
+
+    @staticmethod
     def generate_report_conclusion(query: str, report_content: str, language: str = "english", report_format: str = "apa") -> str:
         """
         Generate a concise conclusion summarizing the main findings and implications of a research report.
@@ -1074,6 +1289,7 @@ report_type_mapping = {
     ReportType.DeepResearch.value: "generate_deep_research_prompt",
     ReportType.CompetitiveIntelligence.value: "generate_competitive_intelligence_prompt",
     ReportType.CompetitiveIntelligenceDetailed.value: "generate_competitive_intelligence_detailed_prompt",
+    ReportType.CompetitiveIntelligenceVisual.value: "generate_competitive_intelligence_visual_prompt",
 }
 
 

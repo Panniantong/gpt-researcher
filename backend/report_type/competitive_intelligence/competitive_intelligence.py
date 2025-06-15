@@ -529,3 +529,429 @@ class CompetitiveIntelligenceDetailedReport(CompetitiveIntelligenceReport):
         else:
             # 其他类型，尝试转换为字符串后添加指导
             return str(context_data) + detailed_platform_guidance
+
+
+class CompetitiveIntelligenceVisualReport(CompetitiveIntelligenceReport):
+    """
+    Competitive Intelligence Visual Report Generator
+    
+    Extends the base CompetitiveIntelligenceReport to generate structured JSON data
+    for visual reporting, including support for Hero Snapshot, Radar Charts, 
+    Growth Timeline, and other visualization components.
+    """
+    
+    def __init__(self, *args, **kwargs):
+        """Initialize the visual report generator with base functionality."""
+        # Force report type to be visual
+        kwargs['report_type'] = "competitive_intelligence_visual"
+        super().__init__(*args, **kwargs)
+        
+    async def run(self):
+        """
+        Execute competitive intelligence research and generate visual JSON report
+        
+        Returns:
+            dict: Structured JSON data for visual reporting
+        """
+        # Conduct research phase (same as base class)
+        await self.gpt_researcher.conduct_research()
+        
+        # Apply platform optimization (same as base class)
+        if hasattr(self.gpt_researcher, 'context') and self.gpt_researcher.context:
+            self.gpt_researcher.context = self._prioritize_platform_results(self.gpt_researcher.context)
+            
+        # Enhance context with platform guidance
+        if hasattr(self.gpt_researcher, 'context') and self.gpt_researcher.context:
+            enhanced_context = self._enhance_context_with_platform_guidance(self.gpt_researcher.context)
+            self.gpt_researcher.context = enhanced_context
+            
+        # Generate JSON report instead of markdown
+        json_report = await self.gpt_researcher.write_report()
+        
+        # Parse and validate JSON structure
+        try:
+            import json
+            parsed_data = json.loads(json_report)
+            validated_data = self._validate_and_enhance_json(parsed_data)
+            return validated_data
+        except json.JSONDecodeError as e:
+            # If JSON parsing fails, return error structure
+            return self._create_error_response(f"JSON解析错误: {str(e)}", json_report)
+        except Exception as e:
+            return self._create_error_response(f"数据处理错误: {str(e)}", json_report)
+    
+    def _validate_and_enhance_json(self, data: dict) -> dict:
+        """
+        Validate and enhance the JSON structure according to visual report schema
+        
+        Args:
+            data (dict): Raw JSON data from AI
+            
+        Returns:
+            dict: Validated and enhanced JSON structure
+        """
+        # Ensure required top-level keys exist
+        required_keys = ["metadata", "layer_1_hero", "layer_2_visual", "layer_3_cards"]
+        for key in required_keys:
+            if key not in data:
+                data[key] = {}
+        
+        # Validate and enhance metadata
+        if "metadata" not in data:
+            data["metadata"] = {}
+        data["metadata"]["product_name"] = data["metadata"].get("product_name", self.query)
+        data["metadata"]["report_date"] = data["metadata"].get("report_date", self._get_current_date())
+        data["metadata"]["version"] = "2.0"
+        data["metadata"]["report_type"] = "visual"
+        
+        # Validate hero snapshot
+        self._validate_hero_snapshot(data.get("layer_1_hero", {}))
+        
+        # Validate radar chart data
+        self._validate_radar_chart(data.get("layer_2_visual", {}))
+        
+        # Validate insight cards
+        self._validate_insight_cards(data.get("layer_3_cards", {}))
+        
+        # Ensure UI config exists
+        if "ui_config" not in data:
+            data["ui_config"] = self._get_default_ui_config()
+            
+        return data
+    
+    def _validate_hero_snapshot(self, hero_data: dict):
+        """Validate and fix hero snapshot data structure."""
+        if "hero_snapshot" not in hero_data:
+            hero_data["hero_snapshot"] = {}
+            
+        snapshot = hero_data["hero_snapshot"]
+        
+        # Ensure key_metrics exists with proper structure
+        if "key_metrics" not in snapshot:
+            snapshot["key_metrics"] = {}
+            
+        metrics = snapshot["key_metrics"]
+        metrics["arr"] = metrics.get("arr", "未知")
+        metrics["clients"] = metrics.get("clients", 0)
+        metrics["growth_90d"] = metrics.get("growth_90d", "未知")
+        metrics["replication_difficulty"] = metrics.get("replication_difficulty", "中等")
+        
+        # Ensure tagline exists
+        snapshot["tagline"] = snapshot.get("tagline", f"{self.query} - AI驱动的产品解决方案")
+        
+        # Ensure value_curve exists
+        if "value_curve" not in hero_data:
+            hero_data["value_curve"] = {}
+        
+        value_curve = hero_data["value_curve"]
+        value_curve["problems"] = value_curve.get("problems", ["传统方案效率低", "成本高", "体验差"])
+        value_curve["solutions"] = value_curve.get("solutions", ["AI优化", "自动化", "智能体验"])
+    
+    def _validate_radar_chart(self, visual_data: dict):
+        """Validate and fix radar chart data structure."""
+        if "competitive_radar" not in visual_data:
+            visual_data["competitive_radar"] = {}
+            
+        radar = visual_data["competitive_radar"]
+        
+        # Ensure dimensions exist
+        default_dimensions = ["定制化", "自动化深度", "开源透明", "生态", "价格"]
+        radar["dimensions"] = radar.get("dimensions", default_dimensions)
+        
+        # Ensure scores exist and are valid
+        if "scores" not in radar or not isinstance(radar["scores"], list):
+            radar["scores"] = [3.5, 3.0, 3.5, 3.0, 3.5]  # Default neutral scores
+        else:
+            # Validate scores are within range
+            radar["scores"] = [max(0, min(5, score)) for score in radar["scores"]]
+            
+        # Ensure proper number of scores
+        if len(radar["scores"]) != len(radar["dimensions"]):
+            radar["scores"] = [3.0] * len(radar["dimensions"])
+            
+        # Ensure competitors exist
+        if "competitors" not in radar:
+            radar["competitors"] = []
+    
+    def _validate_insight_cards(self, cards_data: dict):
+        """Validate and fix insight cards data structure."""
+        if "insight_cards" not in cards_data:
+            cards_data["insight_cards"] = {}
+            
+        cards = cards_data["insight_cards"]
+        
+        # Default card structure
+        default_cards = {
+            "pain_points": {"title": "核心痛点", "icon": "AlertTriangle", "content": "待分析", "evidence_url": ""},
+            "target_users": {"title": "目标用户", "icon": "Users", "content": "待分析", "evidence_url": ""},
+            "core_scenarios": {"title": "核心场景", "icon": "Workflow", "content": "待分析", "evidence_url": ""},
+            "market_status": {"title": "赛道现状", "icon": "TrendingUp", "content": "待分析", "evidence_url": ""},
+            "tech_stack": {"title": "技术栈", "icon": "Code", "content": "待分析", "evidence_url": ""},
+            "business_model": {"title": "商业模式", "icon": "DollarSign", "content": "待分析", "evidence_url": ""}
+        }
+        
+        # Ensure all default cards exist
+        for card_key, default_card in default_cards.items():
+            if card_key not in cards:
+                cards[card_key] = default_card
+            else:
+                # Ensure required fields exist
+                for field, default_value in default_card.items():
+                    if field not in cards[card_key]:
+                        cards[card_key][field] = default_value
+    
+    def _get_default_ui_config(self) -> dict:
+        """Get default UI configuration."""
+        return {
+            "theme": {
+                "primary_color": "#0EA5E9",
+                "accent_color": "#06B6D4", 
+                "background": "gradient",
+                "font_family": "Inter, PingFang SC"
+            },
+            "layout": {
+                "grid_columns": 12,
+                "max_width": "1200px",
+                "margin": "72px",
+                "gutter": "24px"
+            },
+            "animations": {
+                "scroll_reveal": True,
+                "radar_draw_duration": "0.6s",
+                "fade_in_duration": "40ms"
+            }
+        }
+    
+    def _create_error_response(self, error_message: str, raw_data: str = "") -> dict:
+        """Create error response structure."""
+        return {
+            "metadata": {
+                "product_name": self.query,
+                "report_date": self._get_current_date(),
+                "version": "2.0",
+                "report_type": "visual",
+                "error": error_message
+            },
+            "layer_1_hero": {
+                "hero_snapshot": {
+                    "tagline": f"{self.query} - 报告生成遇到问题",
+                    "key_metrics": {
+                        "arr": "未知",
+                        "clients": 0,
+                        "growth_90d": "未知", 
+                        "replication_difficulty": "未知"
+                    }
+                },
+                "value_curve": {
+                    "problems": ["数据获取困难", "信息不足", "解析错误"],
+                    "solutions": ["重新分析", "补充数据", "优化算法"]
+                }
+            },
+            "layer_2_visual": {
+                "competitive_radar": {
+                    "dimensions": ["定制化", "自动化深度", "开源透明", "生态", "价格"],
+                    "scores": [0, 0, 0, 0, 0],
+                    "competitors": []
+                },
+                "growth_timeline": []
+            },
+            "layer_3_cards": {
+                "insight_cards": {
+                    "pain_points": {
+                        "title": "核心痛点",
+                        "icon": "AlertTriangle",
+                        "content": "数据获取失败，无法分析",
+                        "evidence_url": ""
+                    }
+                }
+            },
+            "layer_4_detailed": {
+                "detailed_research": {
+                    "full_analysis": error_message,
+                    "methodology": "自动化分析失败",
+                    "research_sources": [],
+                    "data_gaps": ["所有核心数据"]
+                }
+            },
+            "ui_config": self._get_default_ui_config(),
+            "raw_data": raw_data
+        }
+    
+    def _get_current_date(self) -> str:
+        """Get current date in YYYY-MM-DD format."""
+        from datetime import datetime, timezone
+        return datetime.now(timezone.utc).strftime('%Y-%m-%d')
+    
+    async def generate_html_report(self) -> str:
+        """
+        Generate HTML visualization report
+        
+        Returns:
+            str: HTML content for visual report
+        """
+        # Get JSON data
+        json_data = await self.run()
+        
+        # Generate HTML using template
+        html_content = self._generate_html_from_json(json_data)
+        
+        return html_content
+    
+    def _generate_html_from_json(self, data: dict) -> str:
+        """
+        Generate HTML content from JSON data using template system
+        
+        Args:
+            data (dict): Structured JSON data
+            
+        Returns:
+            str: HTML content
+        """
+        try:
+            # Import the template renderer
+            import sys
+            from pathlib import Path
+            
+            # Add templates directory to path
+            templates_dir = Path(__file__).parent.parent.parent.parent / "templates"
+            sys.path.append(str(templates_dir))
+            
+            from renderer import TemplateRenderer
+            
+            # Create renderer and generate HTML
+            renderer = TemplateRenderer(str(templates_dir))
+            html_content = renderer.render_competitive_intelligence_visual(data)
+            
+            return html_content
+            
+        except Exception as e:
+            # Fallback to simple HTML if template rendering fails
+            return self._generate_fallback_html(data, str(e))
+    
+    def _generate_fallback_html(self, data: dict, error: str = "") -> str:
+        """
+        Generate fallback HTML when template rendering fails
+        
+        Args:
+            data (dict): Structured JSON data
+            error (str): Error message
+            
+        Returns:
+            str: Fallback HTML content
+        """
+        return f"""
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>{data['metadata']['product_name']} - 竞品调研报告</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+        </head>
+        <body class="bg-gray-100">
+            <div class="container mx-auto p-8">
+                <h1 class="text-4xl font-bold mb-8 text-center text-gray-800">{data['metadata']['product_name']}</h1>
+                
+                {f'<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6"><strong>模板渲染错误:</strong> {error}</div>' if error else ''}
+                
+                <!-- Hero Snapshot -->
+                <div class="bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-3xl p-8 mb-8">
+                    <h2 class="text-2xl font-bold mb-4">核心概况</h2>
+                    <p class="text-xl mb-6">{data['layer_1_hero']['hero_snapshot']['tagline']}</p>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-white/20 rounded-xl p-4 text-center">
+                            <div class="text-2xl font-bold">{data['layer_1_hero']['hero_snapshot']['key_metrics']['arr']}</div>
+                            <div class="text-sm opacity-90">ARR</div>
+                        </div>
+                        <div class="bg-white/20 rounded-xl p-4 text-center">
+                            <div class="text-2xl font-bold">{data['layer_1_hero']['hero_snapshot']['key_metrics']['clients']}</div>
+                            <div class="text-sm opacity-90">客户数</div>
+                        </div>
+                        <div class="bg-white/20 rounded-xl p-4 text-center">
+                            <div class="text-lg font-bold">{data['layer_1_hero']['hero_snapshot']['key_metrics']['growth_90d']}</div>
+                            <div class="text-sm opacity-90">90天增长</div>
+                        </div>
+                        <div class="bg-white/20 rounded-xl p-4 text-center">
+                            <div class="text-lg font-bold">{data['layer_1_hero']['hero_snapshot']['key_metrics']['replication_difficulty']}</div>
+                            <div class="text-sm opacity-90">复刻难度</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Value Curve -->
+                <div class="bg-white rounded-3xl p-8 shadow-lg mb-8">
+                    <h3 class="text-2xl font-bold text-center mb-6">价值转化路径</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                        <div class="text-center">
+                            <div class="bg-red-50 rounded-2xl p-6">
+                                <h4 class="text-lg font-semibold text-red-700 mb-3">核心痛点</h4>
+                                <ul class="space-y-1 text-gray-700">
+                                    {self._generate_list_items(data['layer_1_hero']['value_curve']['problems'], 'text-red-600')}
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <div class="w-16 h-1 bg-gradient-to-r from-red-400 via-yellow-400 to-green-400 mx-auto mb-2"></div>
+                            <p class="text-gray-500">AI驱动转化</p>
+                        </div>
+                        <div class="text-center">
+                            <div class="bg-green-50 rounded-2xl p-6">
+                                <h4 class="text-lg font-semibold text-green-700 mb-3">解决方案</h4>
+                                <ul class="space-y-1 text-gray-700">
+                                    {self._generate_list_items(data['layer_1_hero']['value_curve']['solutions'], 'text-green-600')}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Insight Cards -->
+                <div class="bg-white rounded-3xl p-8 shadow-lg mb-8">
+                    <h3 class="text-2xl font-bold text-center mb-6">核心洞察</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {self._generate_cards_html(data['layer_3_cards']['insight_cards'])}
+                    </div>
+                </div>
+                
+                <!-- Raw JSON Data -->
+                <div class="bg-white rounded-3xl p-8 shadow-lg">
+                    <h3 class="text-2xl font-bold mb-4">详细数据</h3>
+                    <details class="mt-4">
+                        <summary class="cursor-pointer text-blue-600 hover:text-blue-800 font-medium">查看原始JSON数据</summary>
+                        <pre class="bg-gray-100 p-4 rounded-lg mt-4 overflow-x-auto text-sm">{self._pretty_json(data)}</pre>
+                    </details>
+                </div>
+                
+                <!-- Footer -->
+                <footer class="text-center text-gray-500 mt-12 py-8 border-t">
+                    <p>报告生成时间: {data['metadata']['report_date']} | 版本: {data['metadata']['version']}</p>
+                    <p class="mt-2">Powered by GPT-Researcher AI竞品调研系统</p>
+                </footer>
+            </div>
+        </body>
+        </html>
+        """
+    
+    def _generate_list_items(self, items: list, color_class: str = "") -> str:
+        """Generate HTML list items."""
+        html_items = []
+        for item in items:
+            html_items.append(f'<li class="flex items-center"><span class="w-2 h-2 rounded-full {color_class} mr-2"></span>{item}</li>')
+        return "\n".join(html_items)
+    
+    def _generate_cards_html(self, cards: dict) -> str:
+        """Generate HTML for insight cards."""
+        html_parts = []
+        for card_key, card_data in cards.items():
+            html_parts.append(f"""
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <h3 class="font-semibold text-lg mb-2">{card_data['title']}</h3>
+                    <p class="text-gray-700">{card_data['content']}</p>
+                </div>
+            """)
+        return "".join(html_parts)
+    
+    def _pretty_json(self, data: dict) -> str:
+        """Pretty print JSON data."""
+        import json
+        return json.dumps(data, ensure_ascii=False, indent=2)
